@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "918998557634",
+    "project_id": "turnigym",
+    "storage_bucket": "turnigym.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:918998557634:android:a30de51fdee994c2e9ac5b",
+        "android_client_info": {
+          "package_name": "com.example.turnigym"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDB8p2ghZE_-0iQtng0DP0XBnTIpYCKZS0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
