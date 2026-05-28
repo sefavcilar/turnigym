@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../main.dart';
+import 'main.dart'; // MainLayout'a erişebilmek için
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -9,82 +9,101 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
+  // Controller'ları final olarak tanımlıyoruz
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
 
   @override
   void dispose() {
+    // Hafıza sızıntısını ve "used after being disposed" hatasını kökten önlüyoruz
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
   }
 
   void _login() {
-    // Şimdilik sadece değerleri konsola yazdırıyoruz.
-    // İleride buraya Firebase veya kendi backend'inize bağlanacak giriş mantığı eklenecek.
-    final email = _emailController.text;
+    final email = _emailController.text.trim();
     final password = _passwordController.text;
 
     debugPrint('Giriş denemesi -> Email: $email, Şifre: $password');
 
-    // Başarılı giriş sonrası ana sayfaya yönlendirme (Şimdilik direkt geçiş yapıyor)
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (context) => const MainLayout()),
-    );
+    // 🚀 Giriş başarılı kabul edilip ana sayfaya güvenli geçiş:
+    if (mounted) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const MainLayout()),
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Turnigym Giriş'), centerTitle: true),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const Icon(
-              Icons.fitness_center, // Turnigym için fitness ikonu
-              size: 80,
-              color: Colors.blueAccent,
-            ),
-            const SizedBox(height: 32),
-            TextField(
-              controller: _emailController,
-              keyboardType: TextInputType.emailAddress,
-              decoration: const InputDecoration(
-                labelText: 'E-posta',
-                border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.email),
+      appBar: AppBar(title: const Text('TurniGym Giriş'), centerTitle: true),
+      // 🌟 Taşma (RenderFlex overflow) hatasını önlemek için SingleChildScrollView şart!
+      body: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24.0),
+          child: Container(
+            constraints: const BoxConstraints(
+              maxWidth: 400,
+            ), // Web'de çok yayılmasın
+            padding: const EdgeInsets.all(24.0),
+            decoration: BoxDecoration(
+              color: const Color(0xFF04171A),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: const Color(0xFF00F0FF).withOpacity(0.3),
               ),
             ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _passwordController,
-              obscureText: true, // Şifrenin gizlenmesi için
-              decoration: const InputDecoration(
-                labelText: 'Şifre',
-                border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.lock),
-              ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const Icon(
+                  Icons.lock_outline,
+                  size: 64,
+                  color: Color(0xFF00F0FF),
+                ),
+                const SizedBox(height: 24),
+                TextField(
+                  controller: _emailController,
+                  keyboardType: TextInputType.emailAddress,
+                  decoration: const InputDecoration(
+                    labelText: 'E-posta',
+                    prefixIcon: Icon(Icons.email_outlined),
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: _passwordController,
+                  obscureText: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Şifre',
+                    prefixIcon: Icon(Icons.lock_open_outlined),
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 24),
+                ElevatedButton(
+                  onPressed: _login,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF00FF66),
+                    foregroundColor: Colors.black,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  child: const Text(
+                    'GİRİŞ YAP',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 24),
-            ElevatedButton(
-              onPressed: _login,
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 16),
-              ),
-              child: const Text('Giriş Yap', style: TextStyle(fontSize: 18)),
-            ),
-            const SizedBox(height: 16),
-            TextButton(
-              onPressed: () {
-                // TODO: İleride Kayıt Ol (Register) ekranına yönlendirme yapılacak
-              },
-              child: const Text('Hesabın yok mu? Hemen Kayıt Ol'),
-            ),
-          ],
+          ),
         ),
       ),
     );

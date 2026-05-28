@@ -1,7 +1,7 @@
+import 'firebase_options.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'firebase_options.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -39,6 +39,8 @@ class MainLayout extends StatefulWidget {
 
 class _MainLayoutState extends State<MainLayout> {
   int _selectedIndex = 1;
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = "";
 
   final List<String> _menuTitles = [
     'Yönetim Paneli',
@@ -59,6 +61,12 @@ class _MainLayoutState extends State<MainLayout> {
   ];
 
   @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: Row(
@@ -70,35 +78,20 @@ class _MainLayoutState extends State<MainLayout> {
             padding: const EdgeInsets.symmetric(horizontal: 12),
             child: Column(
               children: [
-                const SizedBox(height: 24),
-                // Orijinal Logomuz
+                const SizedBox(height: 20),
                 Container(
                   padding: const EdgeInsets.symmetric(vertical: 16),
-                  child: ShaderMask(
-                    shaderCallback: (Rect bounds) {
-                      return const RadialGradient(
-                        center: Alignment.center,
-                        radius:
-                            0.65, // Görselin merkezinden ne kadar uzağa net kalacağı
-                        colors: [
-                          Colors.black,
-                          Colors.transparent,
-                        ], // Siyah olan yerler net, transparan olan yerler bulanık/kayıp olur
-                        stops: [
-                          0.7,
-                          1.0,
-                        ], // Netliğin nerede başlayıp nerede biteceğini ayarlar
-                      ).createShader(bounds);
-                    },
-                    blendMode: BlendMode.dstIn,
-                    child: Image.asset(
-                      'assets/images/turnigym.png',
-                      height: 120,
-                      fit: BoxFit.contain,
-                    ),
+                  width: double.infinity,
+                  alignment: Alignment.center,
+                  child: Image.asset(
+                    'assets/images/turnigym.png',
+                    width: 170,
+                    fit: BoxFit.contain,
+                    color: const Color(0xFF02090B),
+                    colorBlendMode: BlendMode.dstATop,
                   ),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 20),
                 Expanded(
                   child: ListView.builder(
                     itemCount: _menuTitles.length,
@@ -119,17 +112,6 @@ class _MainLayoutState extends State<MainLayout> {
                                   : Colors.transparent,
                               width: 1.5,
                             ),
-                            boxShadow: isSelected
-                                ? [
-                                    BoxShadow(
-                                      color: const Color(
-                                        0xFF00FF66,
-                                      ).withOpacity(0.15),
-                                      blurRadius: 8,
-                                      spreadRadius: 1,
-                                    ),
-                                  ]
-                                : [],
                           ),
                           child: Material(
                             color: Colors.transparent,
@@ -146,9 +128,6 @@ class _MainLayoutState extends State<MainLayout> {
                                   color: isSelected
                                       ? Colors.white
                                       : const Color(0xFF627E82),
-                                  fontWeight: isSelected
-                                      ? FontWeight.bold
-                                      : FontWeight.normal,
                                   fontSize: 13,
                                 ),
                               ),
@@ -173,6 +152,7 @@ class _MainLayoutState extends State<MainLayout> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // ÜST BAR
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -184,7 +164,6 @@ class _MainLayoutState extends State<MainLayout> {
                             style: TextStyle(
                               color: Color(0xFF627E82),
                               fontSize: 15,
-                              letterSpacing: 0.5,
                             ),
                           ),
                           const SizedBox(height: 4),
@@ -200,28 +179,12 @@ class _MainLayoutState extends State<MainLayout> {
                       ),
                       Row(
                         children: [
-                          Stack(
-                            children: [
-                              IconButton(
-                                icon: const Icon(
-                                  Icons.notifications_none,
-                                  color: Color(0xFFFF3B30),
-                                ),
-                                onPressed: () {},
-                              ),
-                              Positioned(
-                                right: 12,
-                                top: 12,
-                                child: Container(
-                                  width: 8,
-                                  height: 8,
-                                  decoration: const BoxDecoration(
-                                    color: Colors.red,
-                                    shape: BoxShape.circle,
-                                  ),
-                                ),
-                              ),
-                            ],
+                          IconButton(
+                            icon: const Icon(
+                              Icons.notifications_none,
+                              color: Color(0xFFFF3B30),
+                            ),
+                            onPressed: () {},
                           ),
                           const SizedBox(width: 12),
                           Container(
@@ -246,15 +209,18 @@ class _MainLayoutState extends State<MainLayout> {
                   ),
                   const SizedBox(height: 24),
 
+                  // TABLO VE SAĞ KARTLAR
                   Expanded(
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        // TABLO TARAFI
                         Expanded(
                           flex: 7,
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
+                              // 🔍 ARAMA BARI
                               Container(
                                 padding: const EdgeInsets.all(12),
                                 decoration: BoxDecoration(
@@ -264,7 +230,6 @@ class _MainLayoutState extends State<MainLayout> {
                                     color: const Color(
                                       0xFF00F0FF,
                                     ).withOpacity(0.3),
-                                    width: 1,
                                   ),
                                 ),
                                 child: Row(
@@ -292,14 +257,22 @@ class _MainLayoutState extends State<MainLayout> {
                                             ).withOpacity(0.5),
                                           ),
                                         ),
-                                        child: const TextField(
-                                          decoration: InputDecoration(
+                                        child: TextField(
+                                          controller: _searchController,
+                                          onChanged: (value) {
+                                            setState(() {
+                                              _searchQuery = value
+                                                  .trim()
+                                                  .toLowerCase();
+                                            });
+                                          },
+                                          decoration: const InputDecoration(
                                             prefixIcon: Icon(
                                               Icons.search,
                                               color: Color(0xFF00F0FF),
                                               size: 16,
                                             ),
-                                            hintText: 'Arama',
+                                            hintText: 'Üye ismi ara...',
                                             hintStyle: TextStyle(
                                               color: Color(0xFF627E82),
                                               fontSize: 12,
@@ -310,68 +283,6 @@ class _MainLayoutState extends State<MainLayout> {
                                             ),
                                           ),
                                         ),
-                                      ),
-                                    ),
-                                    const SizedBox(width: 10),
-                                    Container(
-                                      height: 38,
-                                      decoration: BoxDecoration(
-                                        gradient: const LinearGradient(
-                                          colors: [
-                                            Color(0xFF00F0FF),
-                                            Color(0xFF00A3FF),
-                                          ],
-                                        ),
-                                        borderRadius: BorderRadius.circular(8),
-                                      ),
-                                      child: ElevatedButton(
-                                        onPressed: () {},
-                                        style: ElevatedButton.styleFrom(
-                                          backgroundColor: Colors.transparent,
-                                          shadowColor: Colors.transparent,
-                                          shape: RoundedRectangleBorder(
-                                            borderRadius: BorderRadius.circular(
-                                              8,
-                                            ),
-                                          ),
-                                        ),
-                                        child: const Text(
-                                          'Arama',
-                                          style: TextStyle(
-                                            color: Colors.black,
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 13,
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                    const SizedBox(width: 10),
-                                    Container(
-                                      height: 38,
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 8,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: const Color(0xFF02090B),
-                                        borderRadius: BorderRadius.circular(8),
-                                        border: Border.all(
-                                          color: Colors.white10,
-                                        ),
-                                      ),
-                                      child: const Row(
-                                        children: [
-                                          Text(
-                                            'İssim/Telefon',
-                                            style: TextStyle(
-                                              color: Colors.grey,
-                                              fontSize: 12,
-                                            ),
-                                          ),
-                                          Icon(
-                                            Icons.arrow_drop_down,
-                                            color: Colors.grey,
-                                          ),
-                                        ],
                                       ),
                                     ),
                                   ],
@@ -385,10 +296,11 @@ class _MainLayoutState extends State<MainLayout> {
                                   color: Colors.white,
                                   fontSize: 18,
                                   fontWeight: FontWeight.bold,
-                                  letterSpacing: 0.5,
                                 ),
                               ),
                               const SizedBox(height: 12),
+
+                              // 🔄 SIFIR RİSKLİ YEREL SIRALAMALI CANLI VERİ TABLOSU
                               Expanded(
                                 child: Container(
                                   decoration: BoxDecoration(
@@ -402,7 +314,7 @@ class _MainLayoutState extends State<MainLayout> {
                                   ),
                                   child: ClipRRect(
                                     borderRadius: BorderRadius.circular(12),
-                                    child: ListView(
+                                    child: Column(
                                       children: [
                                         Container(
                                           color: const Color(0xFF02090B),
@@ -415,7 +327,7 @@ class _MainLayoutState extends State<MainLayout> {
                                               Expanded(
                                                 flex: 3,
                                                 child: Text(
-                                                  'İsim/Telefon',
+                                                  'İsim / Telefon',
                                                   style: TextStyle(
                                                     color: Color(0xFF627E82),
                                                     fontWeight: FontWeight.bold,
@@ -438,7 +350,7 @@ class _MainLayoutState extends State<MainLayout> {
                                               Expanded(
                                                 flex: 1,
                                                 child: Text(
-                                                  'Kredit',
+                                                  'Kredi',
                                                   textAlign: TextAlign.center,
                                                   style: TextStyle(
                                                     color: Color(0xFF627E82),
@@ -450,7 +362,7 @@ class _MainLayoutState extends State<MainLayout> {
                                               Expanded(
                                                 flex: 2,
                                                 child: Text(
-                                                  'Üye',
+                                                  'Şirket',
                                                   textAlign: TextAlign.center,
                                                   style: TextStyle(
                                                     color: Color(0xFF627E82),
@@ -474,47 +386,106 @@ class _MainLayoutState extends State<MainLayout> {
                                             ],
                                           ),
                                         ),
-                                        _buildCyberTableRow(
-                                          'Ashün Hismez',
-                                          '(0126) 925-33-33',
-                                          const Color(0xFF00F0FF),
-                                          15,
-                                          'TurniGym',
-                                        ),
-                                        _buildCyberTableRow(
-                                          'Dekseli Ratser',
-                                          '(0125) 926-85-33',
-                                          const Color(0xFF00FF66),
-                                          25,
-                                          'TumiGym',
-                                        ),
-                                        _buildCyberTableRow(
-                                          'Harmel İbayne',
-                                          '(0125) 927-83-33',
-                                          const Color(0xFF627E82),
-                                          31,
-                                          'Üyer Güm',
-                                        ),
-                                        _buildCyberTableRow(
-                                          'Darbet Religin',
-                                          '(0126) 927-85-88',
-                                          const Color(0xFFFF3B30),
-                                          0,
-                                          'TurniGym',
-                                        ),
-                                        _buildCyberTableRow(
-                                          'Mikael Yaymı',
-                                          '(0125) 927-85-33',
-                                          const Color(0xFF00FF66),
-                                          0,
-                                          'Üyer Güm',
-                                        ),
-                                        _buildCyberTableRow(
-                                          'Miclaxl Batırn',
-                                          '(0125) 927-85-39',
-                                          const Color(0xFF00F0FF),
-                                          0,
-                                          'Üyer Güm',
+                                        Expanded(
+                                          child: StreamBuilder<QuerySnapshot>(
+                                            stream: FirebaseFirestore.instance
+                                                .collection('members')
+                                                .snapshots(),
+                                            builder: (context, snapshot) {
+                                              if (snapshot.hasError)
+                                                return const Center(
+                                                  child: Text('Hata oluştu.'),
+                                                );
+
+                                              if (snapshot.connectionState ==
+                                                  ConnectionState.waiting) {
+                                                return const Center(
+                                                  child:
+                                                      CircularProgressIndicator(
+                                                        color: Color(
+                                                          0xFF00F0FF,
+                                                        ),
+                                                      ),
+                                                );
+                                              }
+
+                                              final docs =
+                                                  snapshot.data?.docs ?? [];
+
+                                              // Arama filtresi
+                                              var filteredDocs = docs.where((
+                                                doc,
+                                              ) {
+                                                final data =
+                                                    doc.data()
+                                                        as Map<String, dynamic>;
+                                                final name =
+                                                    (data['name'] ?? '')
+                                                        .toString()
+                                                        .toLowerCase();
+                                                return name.contains(
+                                                  _searchQuery,
+                                                );
+                                              }).toList();
+
+                                              // Güvenli yerel sıralama (En yeni en üstte)
+                                              filteredDocs.sort((a, b) {
+                                                final dataA =
+                                                    a.data()
+                                                        as Map<String, dynamic>;
+                                                final dataB =
+                                                    b.data()
+                                                        as Map<String, dynamic>;
+                                                final timeA =
+                                                    dataA['timestamp'] ?? 0;
+                                                final timeB =
+                                                    dataB['timestamp'] ?? 0;
+                                                return timeB.compareTo(timeA);
+                                              });
+
+                                              if (filteredDocs.isEmpty) {
+                                                return const Center(
+                                                  child: Text(
+                                                    'Kayıtlı üye bulunamadı.',
+                                                    style: TextStyle(
+                                                      color: Color(0xFF627E82),
+                                                    ),
+                                                  ),
+                                                );
+                                              }
+
+                                              return ListView.builder(
+                                                itemCount: filteredDocs.length,
+                                                itemBuilder: (context, index) {
+                                                  final data =
+                                                      filteredDocs[index].data()
+                                                          as Map<
+                                                            String,
+                                                            dynamic
+                                                          >;
+                                                  final docId =
+                                                      filteredDocs[index].id;
+
+                                                  return _buildCyberTableRow(
+                                                    docId,
+                                                    data['name'] ??
+                                                        'Bilinmeyen Üye',
+                                                    data['phone'] ?? '-',
+                                                    (data['credit'] ?? 0) > 0
+                                                        ? const Color(
+                                                            0xFF00FF66,
+                                                          )
+                                                        : const Color(
+                                                            0xFFFF3B30,
+                                                          ),
+                                                    data['credit'] ?? 0,
+                                                    data['company'] ??
+                                                        'TurniGym',
+                                                  );
+                                                },
+                                              );
+                                            },
+                                          ),
                                         ),
                                       ],
                                     ),
@@ -526,10 +497,12 @@ class _MainLayoutState extends State<MainLayout> {
                         ),
                         const SizedBox(width: 20),
 
+                        // SAĞ KONTROL PANELİ
                         Expanded(
                           flex: 3,
                           child: Column(
                             children: [
+                              // 🌟 GERÇEK SİBER-NEON PARILTILI GRADIENT BUTON
                               Container(
                                 width: double.infinity,
                                 height: 50,
@@ -540,114 +513,93 @@ class _MainLayoutState extends State<MainLayout> {
                                       Color(0xFF00F0FF),
                                       Color(0xFFFF6B00),
                                     ],
-                                    begin: Alignment.topLeft,
-                                    end: Alignment.bottomRight,
                                   ),
+                                  // ⚡ İşte butona o cafcaflı neon ışımasını (glow) veren siber sihir:
                                   boxShadow: [
                                     BoxShadow(
                                       color: const Color(
-                                        0xFFFF6B00,
-                                      ).withOpacity(0.25),
-                                      blurRadius: 12,
+                                        0xFF00F0FF,
+                                      ).withOpacity(0.4),
+                                      blurRadius: 15,
                                       spreadRadius: 1,
+                                      offset: const Offset(-2, 0),
+                                    ),
+                                    BoxShadow(
+                                      color: const Color(
+                                        0xFFFF6B00,
+                                      ).withOpacity(0.4),
+                                      blurRadius: 15,
+                                      spreadRadius: 1,
+                                      offset: const Offset(2, 0),
                                     ),
                                   ],
                                 ),
-                                child: Padding(
-                                  padding: const EdgeInsets.all(1.5),
-                                  child: Container(
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFF04171A),
-                                      borderRadius: BorderRadius.circular(11),
+                                child: ElevatedButton.icon(
+                                  onPressed: () {
+                                    showDialog(
+                                      context: context,
+                                      barrierDismissible: false,
+                                      builder: (context) =>
+                                          const AddMemberDialog(),
+                                    );
+                                  },
+                                  icon: const Icon(
+                                    Icons.person_add_alt_1,
+                                    color: Colors.white,
+                                    size: 20,
+                                  ),
+                                  label: const Text(
+                                    'Yeni Üye Ekle',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 14,
+                                      letterSpacing: 0.5,
+                                      shadows: [
+                                        Shadow(
+                                          color: Colors.black45,
+                                          offset: Offset(1, 1),
+                                          blurRadius: 2,
+                                        ),
+                                      ],
                                     ),
-                                    child: ElevatedButton.icon(
-                                      onPressed: () =>
-                                          _showAddMemberDialog(context),
-                                      icon: const Icon(
-                                        Icons.person_add_alt_1,
-                                        color: Colors.white,
-                                        size: 18,
-                                      ),
-                                      label: const FittedBox(
-                                        child: Text(
-                                          'Yeni Üye Ekle',
-                                          style: TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 14,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                      ),
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: Colors.transparent,
-                                        shadowColor: Colors.transparent,
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(
-                                            11,
-                                          ),
-                                        ),
-                                      ),
+                                  ),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.transparent,
+                                    shadowColor: Colors.transparent,
+                                    foregroundColor: Colors.white,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
                                     ),
                                   ),
                                 ),
                               ),
                               const SizedBox(height: 20),
-
-                              // CİHAZ DURUMU KARTI
                               Expanded(
                                 child: Container(
-                                  width: double.infinity,
                                   padding: const EdgeInsets.all(16),
                                   decoration: BoxDecoration(
-                                    color: Colors
-                                        .black, // Görselle bir bütün olması için tam siyah
+                                    color: const Color(0xFF02090B),
                                     borderRadius: BorderRadius.circular(16),
                                     border: Border.all(
                                       color: const Color(
                                         0xFF00F0FF,
                                       ).withOpacity(0.2),
-                                      width: 1.5,
                                     ),
                                   ),
                                   child: Column(
                                     crossAxisAlignment:
                                         CrossAxisAlignment.start,
                                     children: [
-                                      Row(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.spaceBetween,
-                                        children: [
-                                          const Text(
-                                            'Cihaz Durumu',
-                                            style: TextStyle(
-                                              color: Colors.white,
-                                              fontSize: 15,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                          IconButton(
-                                            icon: const Icon(
-                                              Icons.more_horiz,
-                                              color: Color(0xFF627E82),
-                                            ),
-                                            onPressed: () {},
-                                          ),
-                                        ],
-                                      ),
-                                      const SizedBox(height: 15),
-                                      // 🟢 CİHAZ GÖRSELİ - Gölgeli efekt kaldırıldı, arka planla bütünleştirildi
-                                      Center(
-                                        child: Container(
-                                          width: 140,
-                                          height: 140,
-                                          color: Colors.transparent,
-                                          child: Image.asset(
-                                            'assets/images/cihaz_durumu.png',
-                                            fit: BoxFit.contain,
-                                          ),
+                                      const Text(
+                                        'Cihaz Durumu',
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 15,
+                                          fontWeight: FontWeight.bold,
                                         ),
                                       ),
-                                      const SizedBox(height: 16),
+                                      const SizedBox(height: 15),
                                       const Center(
                                         child: Text(
                                           'Aktif',
@@ -655,33 +607,33 @@ class _MainLayoutState extends State<MainLayout> {
                                             color: Color(0xFF00FF66),
                                             fontSize: 18,
                                             fontWeight: FontWeight.bold,
-                                            letterSpacing: 1,
                                           ),
                                         ),
                                       ),
-                                      const Center(
-                                        child: Text(
-                                          'Geçiş İzni',
-                                          style: TextStyle(
-                                            color: Color(0xFF00FF66),
-                                            fontSize: 12,
-                                          ),
+                                      const SizedBox(height: 10),
+
+                                      // Cihaz Durumu Görseli
+                                      Center(
+                                        child: Image.asset(
+                                          'assets/images/cihaz_durumu.png',
+                                          width: 120,
+                                          height: 120,
+                                          fit: BoxFit.contain,
                                         ),
                                       ),
-                                      const SizedBox(height: 16),
+
+                                      const Divider(
+                                        color: Colors.white12,
+                                        height: 24,
+                                      ),
                                       const Text(
-                                        'Turnike Geçiş Logu  Son Geçiş',
+                                        'Son Geçişler',
                                         style: TextStyle(
                                           color: Color(0xFF627E82),
                                           fontSize: 11,
-                                          fontWeight: FontWeight.bold,
                                         ),
                                       ),
-                                      const Divider(
-                                        color: Colors.white12,
-                                        height: 12,
-                                        thickness: 0.5,
-                                      ),
+                                      const SizedBox(height: 10),
                                       Expanded(
                                         child: ListView(
                                           children: [
@@ -692,18 +644,8 @@ class _MainLayoutState extends State<MainLayout> {
                                             ),
                                             _buildDeviceLog(
                                               '01.02.2023',
-                                              '0:39:05',
+                                              '01:39:05',
                                               'Geçiş İzni',
-                                            ),
-                                            _buildDeviceLog(
-                                              '25.02.2023',
-                                              'Geçiş İzni',
-                                              'Aktif',
-                                            ),
-                                            _buildDeviceLog(
-                                              '26.02.2023',
-                                              'Aktif',
-                                              'Aktif',
                                             ),
                                           ],
                                         ),
@@ -728,6 +670,7 @@ class _MainLayoutState extends State<MainLayout> {
   }
 
   Widget _buildCyberTableRow(
+    String docId,
     String name,
     String phone,
     Color fingerColor,
@@ -737,7 +680,7 @@ class _MainLayoutState extends State<MainLayout> {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
       decoration: const BoxDecoration(
-        border: Border(bottom: BorderSide(color: Color(0xFF02171A), width: 1)),
+        border: Border(bottom: BorderSide(color: Color(0xFF02171A))),
       ),
       child: Row(
         children: [
@@ -751,10 +694,8 @@ class _MainLayoutState extends State<MainLayout> {
                   style: const TextStyle(
                     color: Color(0xFF00F0FF),
                     fontWeight: FontWeight.w600,
-                    fontSize: 13,
                   ),
                 ),
-                const SizedBox(height: 2),
                 Text(
                   phone,
                   style: const TextStyle(
@@ -776,11 +717,7 @@ class _MainLayoutState extends State<MainLayout> {
             child: Center(
               child: Text(
                 '$credit',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 13,
-                ),
+                style: const TextStyle(color: Colors.white),
               ),
             ),
           ),
@@ -789,7 +726,7 @@ class _MainLayoutState extends State<MainLayout> {
             child: Center(
               child: Text(
                 company,
-                style: const TextStyle(color: Color(0xFF627E82), fontSize: 13),
+                style: const TextStyle(color: Color(0xFF627E82)),
               ),
             ),
           ),
@@ -800,19 +737,16 @@ class _MainLayoutState extends State<MainLayout> {
               children: [
                 IconButton(
                   icon: const Icon(
-                    Icons.edit_outlined,
-                    color: Color(0xFF00F0FF),
-                    size: 16,
-                  ),
-                  onPressed: () {},
-                ),
-                IconButton(
-                  icon: const Icon(
                     Icons.delete_outline,
                     color: Color(0xFFFF3B30),
                     size: 16,
                   ),
-                  onPressed: () {},
+                  onPressed: () async {
+                    await FirebaseFirestore.instance
+                        .collection('members')
+                        .doc(docId)
+                        .delete();
+                  },
                 ),
               ],
             ),
@@ -840,227 +774,143 @@ class _MainLayoutState extends State<MainLayout> {
       ),
     );
   }
+}
 
-  // ================= YENİ ÜYE EKLE NEON DİYALOG MODAL =================
-  void _showAddMemberDialog(BuildContext context) {
-    final nameController = TextEditingController();
-    final phoneController = TextEditingController();
-    final creditController = TextEditingController();
+class AddMemberDialog extends StatefulWidget {
+  const AddMemberDialog({super.key});
 
-    showDialog(
-      context: context,
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setState) {
-            bool isLoading = false;
+  @override
+  State<AddMemberDialog> createState() => _AddMemberDialogState();
+}
 
-            Future<void> saveMember() async {
-              if (isLoading) return;
+class _AddMemberDialogState extends State<AddMemberDialog> {
+  final _nameCtrl = TextEditingController();
+  final _phoneCtrl = TextEditingController();
+  final _creditCtrl = TextEditingController();
+  bool _isLoading = false;
 
-              final name = nameController.text.trim();
-              final phone = phoneController.text.trim();
-              final creditText = creditController.text.trim();
-
-              if (name.isEmpty || phone.isEmpty || creditText.isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Lütfen tüm alanları doldurun.'),
-                    backgroundColor: Colors.red,
-                  ),
-                );
-                return;
-              }
-
-              final credit = int.tryParse(creditText);
-              if (credit == null) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text(
-                      'Lütfen kredi miktarı için geçerli bir tamsayı girin.',
-                    ),
-                    backgroundColor: Colors.red,
-                  ),
-                );
-                return;
-              }
-
-              setState(() => isLoading = true);
-
-              try {
-                await FirebaseFirestore.instance.collection('members').add({
-                  'name': name,
-                  'phone': phone,
-                  'credit': credit,
-                  'company': 'TurniGym',
-                  'createdAt': FieldValue.serverTimestamp(),
-                });
-
-                if (context.mounted) {
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Yeni üye başarıyla eklendi!'),
-                      backgroundColor: Color(0xFF00FF66),
-                    ),
-                  );
-                }
-              } catch (e) {
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Hata: Üye eklenemedi. ${e.toString()}'),
-                      backgroundColor: Colors.red,
-                    ),
-                  );
-                }
-              } finally {
-                if (context.mounted) {
-                  setState(() => isLoading = false);
-                }
-              }
-            }
-
-            return Dialog(
-              backgroundColor: Colors.transparent,
-              child: Container(
-                width: 450,
-                padding: const EdgeInsets.all(24),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF04171A),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: const Color(0xFF00F0FF).withOpacity(0.5),
-                    width: 2,
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: const Color(0xFF00F0FF).withOpacity(0.2),
-                      blurRadius: 20,
-                      spreadRadius: 2,
-                    ),
-                  ],
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'YENİ ÜYE EKLE',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 1.5,
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-                    _buildNeonTextField(
-                      'İsim Soyisim',
-                      Icons.person_outline,
-                      nameController,
-                    ),
-                    const SizedBox(height: 16),
-                    _buildNeonTextField(
-                      'Telefon Numarası',
-                      Icons.phone_outlined,
-                      phoneController,
-                    ),
-                    const SizedBox(height: 16),
-                    _buildNeonTextField(
-                      'Kredi Miktarı',
-                      Icons.credit_score_outlined,
-                      creditController,
-                      keyboardType: TextInputType.number,
-                    ),
-                    const SizedBox(height: 24),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        TextButton(
-                          onPressed: isLoading
-                              ? null
-                              : () => Navigator.pop(context),
-                          child: const Text(
-                            'İptal',
-                            style: TextStyle(
-                              color: Color(0xFF627E82),
-                              fontSize: 14,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        Container(
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(8),
-                            boxShadow: [
-                              BoxShadow(
-                                color: const Color(0xFF00FF66).withOpacity(0.3),
-                                blurRadius: 12,
-                                spreadRadius: 1,
-                              ),
-                            ],
-                          ),
-                          child: ElevatedButton(
-                            onPressed: isLoading ? null : saveMember,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF00FF66),
-                              foregroundColor: Colors.black,
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 24,
-                                vertical: 12,
-                              ),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                            ),
-                            child: isLoading
-                                ? const SizedBox(
-                                    width: 20,
-                                    height: 20,
-                                    child: CircularProgressIndicator(
-                                      color: Colors.black,
-                                      strokeWidth: 2,
-                                    ),
-                                  )
-                                : const Text(
-                                    'KAYDET',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 14,
-                                    ),
-                                  ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            );
-          },
-        );
-      },
-    ).whenComplete(() {
-      nameController.dispose();
-      phoneController.dispose();
-      creditController.dispose();
-    });
+  @override
+  void dispose() {
+    _nameCtrl.dispose();
+    _phoneCtrl.dispose();
+    _creditCtrl.dispose();
+    super.dispose();
   }
 
-  Widget _buildNeonTextField(
+  Future<void> _save() async {
+    final name = _nameCtrl.text.trim();
+    final phone = _phoneCtrl.text.trim();
+    final creditText = _creditCtrl.text.trim();
+
+    if (name.isEmpty || phone.isEmpty || creditText.isEmpty) return;
+    final credit = int.tryParse(creditText) ?? 0;
+
+    setState(() => _isLoading = true);
+
+    try {
+      await FirebaseFirestore.instance.collection('members').add({
+        'name': name,
+        'phone': phone,
+        'credit': credit,
+        'company': 'TurniGym',
+        'timestamp': DateTime.now().millisecondsSinceEpoch,
+      });
+      if (mounted) Navigator.pop(context);
+    } catch (e) {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      child: Container(
+        width: 400,
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: const Color(0xFF04171A),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: const Color(0xFF00F0FF).withOpacity(0.5),
+            width: 2,
+          ),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'YENİ ÜYE EKLE',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 1,
+              ),
+            ),
+            const SizedBox(height: 20),
+            _buildField('İsim Soyisim', Icons.person_outline, _nameCtrl),
+            const SizedBox(height: 12),
+            _buildField('Telefon', Icons.phone_outlined, _phoneCtrl),
+            const SizedBox(height: 12),
+            _buildField(
+              'Kredi',
+              Icons.credit_score_outlined,
+              _creditCtrl,
+              isNum: true,
+            ),
+            const SizedBox(height: 20),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                TextButton(
+                  onPressed: _isLoading ? null : () => Navigator.pop(context),
+                  child: const Text(
+                    'İptal',
+                    style: TextStyle(color: Color(0xFF627E82)),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                ElevatedButton(
+                  onPressed: _isLoading ? null : _save,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF00FF66),
+                    foregroundColor: Colors.black,
+                  ),
+                  child: _isLoading
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.black,
+                          ),
+                        )
+                      : const Text('KAYDET'),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildField(
     String label,
     IconData icon,
-    TextEditingController controller, {
-    TextInputType keyboardType = TextInputType.text,
+    TextEditingController ctrl, {
+    bool isNum = false,
   }) {
     return TextField(
-      controller: controller,
-      keyboardType: keyboardType,
-      style: const TextStyle(color: Colors.white),
+      controller: ctrl,
+      keyboardType: isNum ? TextInputType.number : TextInputType.text,
+      style: const TextStyle(color: Colors.white, fontSize: 14),
       decoration: InputDecoration(
         labelText: label,
-        labelStyle: const TextStyle(color: Color(0xFF627E82)),
-        prefixIcon: Icon(icon, color: const Color(0xFF00F0FF)),
+        labelStyle: const TextStyle(color: Color(0xFF627E82), fontSize: 13),
+        prefixIcon: Icon(icon, color: const Color(0xFF00F0FF), size: 18),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
           borderSide: BorderSide(
@@ -1069,10 +919,11 @@ class _MainLayoutState extends State<MainLayout> {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          borderSide: const BorderSide(color: Color(0xFF00F0FF), width: 2),
+          borderSide: const BorderSide(color: Color(0xFF00F0FF)),
         ),
         filled: true,
         fillColor: const Color(0xFF02090B),
+        contentPadding: const EdgeInsets.symmetric(vertical: 10),
       ),
     );
   }
