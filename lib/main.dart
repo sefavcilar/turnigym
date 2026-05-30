@@ -1,38 +1,189 @@
-import 'firebase_options.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:intl/intl.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'firebase_options.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-  runApp(const MyApp());
+  runApp(const TurniGymApp());
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
-
+class TurniGymApp extends StatelessWidget {
+  const TurniGymApp({super.key});
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'TurniGym VIP Panel',
       debugShowCheckedModeBanner: false,
       theme: ThemeData.dark().copyWith(
         scaffoldBackgroundColor: const Color(0xFF030E11),
         cardColor: const Color(0xFF04171A),
         primaryColor: const Color(0xFF00F0FF),
-        colorScheme: const ColorScheme.dark().copyWith(
-          secondary: const Color(0xFFFF6B00),
-        ),
       ),
-      home: const MainLayout(),
+      home: const AuthChecker(),
     );
   }
 }
 
+// 1. OTURUM KONTROLÜ
+class AuthChecker extends StatelessWidget {
+  const AuthChecker({super.key});
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<User?>(
+      stream: FirebaseAuth.instance.authStateChanges(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
+        }
+        return snapshot.hasData ? const MainLayout() : const LoginView();
+      },
+    );
+  }
+}
+
+// 2. MODERN GİRİŞ EKRANI
+class LoginView extends StatefulWidget {
+  const LoginView({super.key});
+  @override
+  State<LoginView> createState() => _LoginViewState();
+}
+
+class _LoginViewState extends State<LoginView> {
+  final _email = TextEditingController();
+  final _pass = TextEditingController();
+  bool _rememberMe = false;
+  bool _isLogin = true; // Kayıt Ol / Giriş Yap geçişi için
+
+  @override
+  void initState() {
+    super.initState();
+    _loadRememberedEmail();
+  }
+
+  Future<void> _loadRememberedEmail() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _email.text = prefs.getString('saved_email') ?? '';
+      _rememberMe = prefs.getBool('remember') ?? false;
+    });
+  }
+
+  Future<void> _handleAuth() async {
+    try {
+      if (_rememberMe) {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('saved_email', _email.text.trim());
+        await prefs.setBool('remember', true);
+      }
+
+      if (_isLogin) {
+        await FirebaseAuth.instance.signInWithEmailAndPassword(
+          email: _email.text.trim(),
+          password: _pass.text.trim(),
+        );
+      } else {
+        await FirebaseAuth.instance.createUserWithEmailAndPassword(
+          email: _email.text.trim(),
+          password: _pass.text.trim(),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("Hata: $e")));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFF030E11),
+      body: Center(
+        child: Container(
+          width: 400,
+          padding: const EdgeInsets.all(40),
+          decoration: BoxDecoration(
+            color: const Color(0xFF04171A),
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: const Color(0xFF00F0FF).withOpacity(0.2)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Image.asset('assets/images/turnigym.png', width: 240),
+              const SizedBox(height: 30),
+              TextField(
+                controller: _email,
+                style: const TextStyle(color: Colors.white),
+                decoration: const InputDecoration(
+                  labelText: 'E-posta',
+                  prefixIcon: Icon(Icons.email, color: Color(0xFF00F0FF)),
+                ),
+              ),
+              TextField(
+                controller: _pass,
+                obscureText: true,
+                style: const TextStyle(color: Colors.white),
+                decoration: const InputDecoration(
+                  labelText: 'Şifre',
+                  prefixIcon: Icon(Icons.lock, color: Color(0xFF00F0FF)),
+                ),
+              ),
+              Row(
+                children: [
+                  Checkbox(
+                    value: _rememberMe,
+                    onChanged: (v) => setState(() => _rememberMe = v!),
+                    activeColor: const Color(0xFF00F0FF),
+                  ),
+                  const Text(
+                    'Beni Hatırla',
+                    style: TextStyle(color: Colors.white70),
+                  ),
+                ],
+              ),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: _handleAuth,
+                  child: Text(_isLogin ? 'GİRİŞ YAP' : 'KAYIT OL'),
+                ),
+              ),
+              TextButton(
+                onPressed: () => setState(() => _isLogin = !_isLogin),
+                child: Text(
+                  _isLogin
+                      ? 'Hesabınız yok mu? Kayıt Ol'
+                      : 'Zaten hesabınız var mı? Giriş Yap',
+                ),
+              ),
+              TextButton(
+                onPressed: () {},
+                child: const Text(
+                  "Şifremi Unuttum",
+                  style: TextStyle(color: Colors.grey),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+// 3. DASHBOARD (Buraya senin gönderdiğin MainLayout ve diğerlerini yapıştır!)
+
+// 3. SENİN DASHBOARD KODUN (MainLayout)
+// Buraya gönderdiğin MainLayout sınıfını yapıştıracaksın (yukarıda verdiğin tüm o detaylı Sidebar ve Tablo kodlarını buraya al).
+// Ayrıca Çıkış Yap butonuna şu satırı ekle: () => FirebaseAuth.instance.signOut()
 class MainLayout extends StatefulWidget {
   const MainLayout({super.key});
 
