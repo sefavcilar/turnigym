@@ -50,6 +50,7 @@ class AuthChecker extends StatelessWidget {
 }
 
 // 2. MODERN GİRİŞ EKRANI
+// 2. MODERN GİRİŞ EKRANI
 class LoginView extends StatefulWidget {
   const LoginView({super.key});
   @override
@@ -60,7 +61,7 @@ class _LoginViewState extends State<LoginView> {
   final _email = TextEditingController();
   final _pass = TextEditingController();
   bool _rememberMe = false;
-  bool _isLogin = true; // Kayıt Ol / Giriş Yap geçişi için
+  bool _isLogin = true;
 
   @override
   void initState() {
@@ -78,10 +79,13 @@ class _LoginViewState extends State<LoginView> {
 
   Future<void> _handleAuth() async {
     try {
+      final prefs = await SharedPreferences.getInstance();
       if (_rememberMe) {
-        final prefs = await SharedPreferences.getInstance();
         await prefs.setString('saved_email', _email.text.trim());
         await prefs.setBool('remember', true);
+      } else {
+        await prefs.remove('saved_email');
+        await prefs.setBool('remember', false);
       }
 
       if (_isLogin) {
@@ -128,6 +132,7 @@ class _LoginViewState extends State<LoginView> {
                   prefixIcon: Icon(Icons.email, color: Color(0xFF00F0FF)),
                 ),
               ),
+              const SizedBox(height: 20),
               TextField(
                 controller: _pass,
                 obscureText: true,
@@ -150,21 +155,41 @@ class _LoginViewState extends State<LoginView> {
                   ),
                 ],
               ),
+              // Eski metin ve butonun olduğu kısmı bununla değiştir:
+
+              // Kayıt / Giriş geçişi yerine tek buton:
+              // 1. Ana aksiyon butonu (Giriş Yap / Kayıt Ol - Buton olarak)
               SizedBox(
                 width: double.infinity,
+                height: 50,
                 child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF00F0FF),
+                  ),
                   onPressed: _handleAuth,
-                  child: Text(_isLogin ? 'GİRİŞ YAP' : 'KAYIT OL'),
+                  child: Text(
+                    _isLogin ? 'GİRİŞ YAP' : 'KAYIT OL',
+                    style: const TextStyle(
+                      color: Colors.black,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ),
               ),
+              const SizedBox(height: 10),
+
+              // 2. Mod değiştirme (Sadece yazı tipi link gibi)
               TextButton(
                 onPressed: () => setState(() => _isLogin = !_isLogin),
                 child: Text(
                   _isLogin
                       ? 'Hesabınız yok mu? Kayıt Ol'
                       : 'Zaten hesabınız var mı? Giriş Yap',
+                  style: const TextStyle(color: Colors.white70),
                 ),
               ),
+
+              // 3. Şifremi Unuttum
               TextButton(
                 onPressed: () {},
                 child: const Text(
@@ -228,6 +253,7 @@ class _MainLayoutState extends State<MainLayout> {
       body: Row(
         children: [
           // ================= SOL SIDEBAR =================
+          // ================= SOL SIDEBAR =================
           Container(
             width: 260,
             color: const Color(0xFF02090B),
@@ -235,87 +261,59 @@ class _MainLayoutState extends State<MainLayout> {
             child: Column(
               children: [
                 const SizedBox(height: 20),
-                Container(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  width: double.infinity,
-                  alignment: Alignment.center,
-                  child: Image.asset(
-                    'assets/images/turnigym.png',
-                    width: 180,
-                    fit: BoxFit.contain,
-                    color: const Color(0xFF02090B),
-                    colorBlendMode: BlendMode.dstATop,
-                  ),
-                ),
+                Image.asset('assets/images/turnigym.png', width: 180),
                 const SizedBox(height: 15),
                 Expanded(
                   child: ListView.builder(
                     itemCount: _menuTitles.length,
                     itemBuilder: (context, index) {
                       bool isSelected = _selectedIndex == index;
-                      return Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 3),
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 200),
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(10),
+                      return ListTile(
+                        leading: Icon(
+                          _menuIcons[index],
+                          color: isSelected
+                              ? const Color(0xFF00FF66)
+                              : const Color(0xFF627E82),
+                        ),
+                        title: Text(
+                          _menuTitles[index],
+                          style: TextStyle(
                             color: isSelected
-                                ? const Color(0xFF041E22)
-                                : Colors.transparent,
-                            border: Border.all(
-                              color: isSelected
-                                  ? const Color(0xFF00FF66)
-                                  : Colors.transparent,
-                              width: 1.5,
-                            ),
-                          ),
-                          child: Material(
-                            color: Colors.transparent,
-                            child: ListTile(
-                              leading: Icon(
-                                _menuIcons[index],
-                                color: isSelected
-                                    ? const Color(0xFF00FF66)
-                                    : const Color(0xFF627E82),
-                                size: 18,
-                              ),
-                              title: Text(
-                                _menuTitles[index],
-                                style: TextStyle(
-                                  color: isSelected
-                                      ? Colors.white
-                                      : const Color(0xFF627E82),
-                                  fontSize: 12,
-                                  fontWeight: isSelected
-                                      ? FontWeight.bold
-                                      : FontWeight.normal,
-                                ),
-                              ),
-                              dense: true,
-                              onTap: () =>
-                                  setState(() => _selectedIndex = index),
-                            ),
+                                ? Colors.white
+                                : const Color(0xFF627E82),
                           ),
                         ),
+                        onTap: () => setState(() => _selectedIndex = index),
                       );
                     },
                   ),
                 ),
+                // --- ÇIKIŞ BUTONU BURAYA EKLENİYOR ---
+                const Divider(color: Color(0xFF13363B)),
+                ListTile(
+                  leading: const Icon(
+                    Icons.logout,
+                    color: Colors.redAccent,
+                    size: 20,
+                  ),
+                  title: const Text(
+                    'Çıkış Yap',
+                    style: TextStyle(color: Colors.redAccent, fontSize: 13),
+                  ),
+                  onTap: () async {
+                    await FirebaseAuth.instance.signOut();
+                  },
+                ),
                 const Padding(
-                  padding: EdgeInsets.only(bottom: 12),
+                  padding: EdgeInsets.symmetric(vertical: 12),
                   child: Text(
                     'TURNIGYM v1.0.0 Enterprise',
-                    style: TextStyle(
-                      color: Color(0xFF13363B),
-                      fontSize: 10,
-                      letterSpacing: 0.5,
-                    ),
+                    style: TextStyle(color: Color(0xFF13363B), fontSize: 10),
                   ),
                 ),
               ],
             ),
           ),
-
           // ================= SAĞ ANA İÇERİK ALANI =================
           Expanded(
             child: Padding(
@@ -1031,6 +1029,7 @@ class _MainLayoutState extends State<MainLayout> {
             ],
           ),
         ),
+
         const SizedBox(width: 20),
 
         Expanded(
