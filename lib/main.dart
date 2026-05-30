@@ -44,21 +44,23 @@ class _MainLayoutState extends State<MainLayout> {
   String _searchQuery = "";
 
   final List<String> _menuTitles = [
-    'Yönetim Paneli',
-    'Üye Yönetimi',
-    'Üye Listesi',
-    'Üye Yönetimi',
-    'Turniş Fannel',
-    'İşlerr Logu',
+    'Kontrol Merkezi',
+    'Üye & Kredi Yönetimi',
+    'Paket & Satış',
+    'Geçiş Analitiği',
+    'Şirket Tanımlama',
+    'Donanım Kalibrasyonu',
+    'Sistem Ayarları',
   ];
 
   final List<IconData> _menuIcons = [
-    Icons.home_outlined,
+    Icons.token_outlined,
     Icons.group_outlined,
-    Icons.person_search_outlined,
+    Icons.add_card_outlined,
+    Icons.analytics_outlined,
+    Icons.business_outlined,
+    Icons.developer_board,
     Icons.tune_outlined,
-    Icons.blur_circular_outlined,
-    Icons.info_outline,
   ];
 
   @override
@@ -74,7 +76,7 @@ class _MainLayoutState extends State<MainLayout> {
         children: [
           // ================= SOL SIDEBAR =================
           Container(
-            width: 250,
+            width: 260,
             color: const Color(0xFF02090B),
             padding: const EdgeInsets.symmetric(horizontal: 12),
             child: Column(
@@ -86,20 +88,20 @@ class _MainLayoutState extends State<MainLayout> {
                   alignment: Alignment.center,
                   child: Image.asset(
                     'assets/images/turnigym.png',
-                    width: 170,
+                    width: 180,
                     fit: BoxFit.contain,
                     color: const Color(0xFF02090B),
                     colorBlendMode: BlendMode.dstATop,
                   ),
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 15),
                 Expanded(
                   child: ListView.builder(
                     itemCount: _menuTitles.length,
                     itemBuilder: (context, index) {
                       bool isSelected = _selectedIndex == index;
                       return Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        padding: const EdgeInsets.symmetric(vertical: 3),
                         child: AnimatedContainer(
                           duration: const Duration(milliseconds: 200),
                           decoration: BoxDecoration(
@@ -122,6 +124,7 @@ class _MainLayoutState extends State<MainLayout> {
                                 color: isSelected
                                     ? const Color(0xFF00FF66)
                                     : const Color(0xFF627E82),
+                                size: 18,
                               ),
                               title: Text(
                                 _menuTitles[index],
@@ -129,7 +132,10 @@ class _MainLayoutState extends State<MainLayout> {
                                   color: isSelected
                                       ? Colors.white
                                       : const Color(0xFF627E82),
-                                  fontSize: 13,
+                                  fontSize: 12,
+                                  fontWeight: isSelected
+                                      ? FontWeight.bold
+                                      : FontWeight.normal,
                                 ),
                               ),
                               dense: true,
@@ -140,6 +146,18 @@ class _MainLayoutState extends State<MainLayout> {
                         ),
                       );
                     },
+                  ),
+                ),
+                // 💡 İşte o hatalı Padding/Style ilişkisi burada jilet gibi ayrıştırıldı:
+                const Padding(
+                  padding: EdgeInsets.only(bottom: 12),
+                  child: Text(
+                    'TURNIGYM v1.0.0 Enterprise',
+                    style: TextStyle(
+                      color: Color(0xFF13363B),
+                      fontSize: 10,
+                      letterSpacing: 0.5,
+                    ),
                   ),
                 ),
               ],
@@ -887,7 +905,6 @@ class _MainLayoutState extends State<MainLayout> {
   }
 }
 
-// ================= GÜNCEL KAREKOD DİYALOG POP-UP'I =================
 class QrDisplayDialog extends StatelessWidget {
   final String memberId;
   final String memberName;
@@ -945,7 +962,6 @@ class QrDisplayDialog extends StatelessWidget {
             const Divider(color: Colors.white12, height: 24),
             const SizedBox(height: 6),
 
-            // 🔮 En güncel qr_flutter API standardına göre kilitlenen alan:
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
