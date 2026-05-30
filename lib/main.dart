@@ -2,6 +2,7 @@ import 'firebase_options.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -300,7 +301,7 @@ class _MainLayoutState extends State<MainLayout> {
                               ),
                               const SizedBox(height: 12),
 
-                              // 🔄 SIFIR RİSKLİ YEREL SIRALAMALI CANLI VERİ TABLOSU
+                              // 🔄 TABLO ALANI
                               Expanded(
                                 child: Container(
                                   decoration: BoxDecoration(
@@ -412,7 +413,6 @@ class _MainLayoutState extends State<MainLayout> {
                                               final docs =
                                                   snapshot.data?.docs ?? [];
 
-                                              // Arama filtresi
                                               var filteredDocs = docs.where((
                                                 doc,
                                               ) {
@@ -428,7 +428,6 @@ class _MainLayoutState extends State<MainLayout> {
                                                 );
                                               }).toList();
 
-                                              // Güvenli yerel sıralama (En yeni en üstte)
                                               filteredDocs.sort((a, b) {
                                                 final dataA =
                                                     a.data()
@@ -467,6 +466,7 @@ class _MainLayoutState extends State<MainLayout> {
                                                       filteredDocs[index].id;
 
                                                   return _buildCyberTableRow(
+                                                    context,
                                                     docId,
                                                     data['name'] ??
                                                         'Bilinmeyen Üye',
@@ -502,7 +502,6 @@ class _MainLayoutState extends State<MainLayout> {
                           flex: 3,
                           child: Column(
                             children: [
-                              // 🌟 GERÇEK SİBER-NEON PARILTILI GRADIENT BUTON
                               Container(
                                 width: double.infinity,
                                 height: 50,
@@ -514,7 +513,6 @@ class _MainLayoutState extends State<MainLayout> {
                                       Color(0xFFFF6B00),
                                     ],
                                   ),
-                                  // ⚡ İşte butona o cafcaflı neon ışımasını (glow) veren siber sihir:
                                   boxShadow: [
                                     BoxShadow(
                                       color: const Color(
@@ -612,7 +610,6 @@ class _MainLayoutState extends State<MainLayout> {
                                       ),
                                       const SizedBox(height: 10),
 
-                                      // Cihaz Durumu Görseli
                                       Center(
                                         child: Image.asset(
                                           'assets/images/cihaz_durumu.png',
@@ -634,20 +631,136 @@ class _MainLayoutState extends State<MainLayout> {
                                         ),
                                       ),
                                       const SizedBox(height: 10),
+
                                       Expanded(
-                                        child: ListView(
-                                          children: [
-                                            _buildDeviceLog(
-                                              '15.02.2023',
-                                              '08:09:35',
-                                              'Geçiş İzni',
-                                            ),
-                                            _buildDeviceLog(
-                                              '01.02.2023',
-                                              '01:39:05',
-                                              'Geçiş İzni',
-                                            ),
-                                          ],
+                                        child: StreamBuilder<QuerySnapshot>(
+                                          stream: FirebaseFirestore.instance
+                                              .collection('pass_logs')
+                                              .orderBy(
+                                                'timestamp',
+                                                descending: true,
+                                              )
+                                              .limit(10)
+                                              .snapshots(),
+                                          builder: (context, snapshot) {
+                                            if (snapshot.hasError) {
+                                              return const Center(
+                                                child: Text(
+                                                  'Log hatası.',
+                                                  style: TextStyle(
+                                                    color: Colors.red,
+                                                    fontSize: 11,
+                                                  ),
+                                                ),
+                                              );
+                                            }
+
+                                            if (snapshot.connectionState ==
+                                                ConnectionState.waiting) {
+                                              return const Center(
+                                                child:
+                                                    CircularProgressIndicator(
+                                                      strokeWidth: 2,
+                                                      color: Color(0xFF00F0FF),
+                                                    ),
+                                              );
+                                            }
+
+                                            final logDocs =
+                                                snapshot.data?.docs ?? [];
+
+                                            if (logDocs.isEmpty) {
+                                              return const Center(
+                                                child: Text(
+                                                  'Henüz geçiş kaydı yok.',
+                                                  style: TextStyle(
+                                                    color: Color(0xFF627E82),
+                                                    fontSize: 12,
+                                                  ),
+                                                ),
+                                              );
+                                            }
+
+                                            return ListView.builder(
+                                              itemCount: logDocs.length,
+                                              itemBuilder: (context, index) {
+                                                final logData =
+                                                    logDocs[index].data()
+                                                        as Map<String, dynamic>;
+
+                                                final name =
+                                                    logData['memberName'] ??
+                                                    'Bilinmeyen Üye';
+                                                final date =
+                                                    logData['date'] ?? '-';
+                                                final time =
+                                                    logData['time'] ?? '-';
+                                                final status =
+                                                    logData['status'] ??
+                                                    'Geçiş İzni';
+
+                                                return Padding(
+                                                  padding:
+                                                      const EdgeInsets.symmetric(
+                                                        vertical: 6,
+                                                      ),
+                                                  child: Row(
+                                                    mainAxisAlignment:
+                                                        MainAxisAlignment
+                                                            .spaceBetween,
+                                                    children: [
+                                                      Expanded(
+                                                        child: Column(
+                                                          crossAxisAlignment:
+                                                              CrossAxisAlignment
+                                                                  .start,
+                                                          children: [
+                                                            Text(
+                                                              name,
+                                                              style: const TextStyle(
+                                                                color: Colors
+                                                                    .white,
+                                                                fontSize: 12,
+                                                                fontWeight:
+                                                                    FontWeight
+                                                                        .w600,
+                                                              ),
+                                                              overflow:
+                                                                  TextOverflow
+                                                                      .ellipsis,
+                                                              maxLines: 1,
+                                                            ),
+                                                            Text(
+                                                              '$date  $time',
+                                                              style:
+                                                                  const TextStyle(
+                                                                    color: Color(
+                                                                      0xFF627E82,
+                                                                    ),
+                                                                    fontSize:
+                                                                        10,
+                                                                  ),
+                                                            ),
+                                                          ],
+                                                        ),
+                                                      ),
+                                                      Text(
+                                                        status,
+                                                        style: const TextStyle(
+                                                          color: Color(
+                                                            0xFF00FF66,
+                                                          ),
+                                                          fontSize: 11,
+                                                          fontWeight:
+                                                              FontWeight.bold,
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                );
+                                              },
+                                            );
+                                          },
                                         ),
                                       ),
                                     ],
@@ -670,6 +783,7 @@ class _MainLayoutState extends State<MainLayout> {
   }
 
   Widget _buildCyberTableRow(
+    BuildContext context,
     String docId,
     String name,
     String phone,
@@ -737,6 +851,22 @@ class _MainLayoutState extends State<MainLayout> {
               children: [
                 IconButton(
                   icon: const Icon(
+                    Icons.qr_code_2_outlined,
+                    color: Color(0xFF00F0FF),
+                    size: 18,
+                  ),
+                  tooltip: 'Karekod Oluştur',
+                  onPressed: () {
+                    showDialog(
+                      context: context,
+                      builder: (context) =>
+                          QrDisplayDialog(memberId: docId, memberName: name),
+                    );
+                  },
+                ),
+                const SizedBox(width: 4),
+                IconButton(
+                  icon: const Icon(
                     Icons.delete_outline,
                     color: Color(0xFFFF3B30),
                     size: 16,
@@ -755,22 +885,112 @@ class _MainLayoutState extends State<MainLayout> {
       ),
     );
   }
+}
 
-  Widget _buildDeviceLog(String date, String time, String status) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            '$date  $time',
-            style: const TextStyle(color: Color(0xFF627E82), fontSize: 11),
+// ================= GÜNCEL KAREKOD DİYALOG POP-UP'I =================
+class QrDisplayDialog extends StatelessWidget {
+  final String memberId;
+  final String memberName;
+
+  const QrDisplayDialog({
+    super.key,
+    required this.memberId,
+    required this.memberName,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      child: Container(
+        width: 320,
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: const Color(0xFF04171A),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: const Color(0xFF00F0FF).withOpacity(0.5),
+            width: 2,
           ),
-          Text(
-            status,
-            style: const TextStyle(color: Color(0xFF00FF66), fontSize: 11),
-          ),
-        ],
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF00F0FF).withOpacity(0.15),
+              blurRadius: 20,
+              spreadRadius: 2,
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'ÜYE GİRİŞ BİLETİ',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 1.5,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              memberName.toUpperCase(),
+              style: const TextStyle(
+                color: Color(0xFFFF6B00),
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const Divider(color: Colors.white12, height: 24),
+            const SizedBox(height: 6),
+
+            // 🔮 En güncel qr_flutter API standardına göre kilitlenen alan:
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: SizedBox(
+                width: 180,
+                height: 180,
+                child: QrImageView(
+                  data: memberId,
+                  version: QrVersions.auto,
+                  gapless: true,
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 16),
+            Text(
+              'ID: $memberId',
+              style: const TextStyle(
+                color: Color(0xFF627E82),
+                fontSize: 10,
+                fontFamily: 'monospace',
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF00F0FF),
+                foregroundColor: Colors.black,
+                minimumSize: const Size(double.infinity, 40),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              child: const Text(
+                'KAPAT',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -867,7 +1087,7 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
                 TextButton(
                   onPressed: _isLoading ? null : () => Navigator.pop(context),
                   child: const Text(
-                    'İptal',
+                    'Iptal',
                     style: TextStyle(color: Color(0xFF627E82)),
                   ),
                 ),
