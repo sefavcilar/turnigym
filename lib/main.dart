@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:qr_flutter/qr_flutter.dart';
+import 'package:intl/intl.dart';
+import 'package:fl_chart/fl_chart.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -39,7 +41,7 @@ class MainLayout extends StatefulWidget {
 }
 
 class _MainLayoutState extends State<MainLayout> {
-  int _selectedIndex = 1;
+  int _selectedIndex = 0;
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = "";
 
@@ -148,7 +150,6 @@ class _MainLayoutState extends State<MainLayout> {
                     },
                   ),
                 ),
-                // 💡 İşte o hatalı Padding/Style ilişkisi burada jilet gibi ayrıştırıldı:
                 const Padding(
                   padding: EdgeInsets.only(bottom: 12),
                   child: Text(
@@ -228,568 +229,10 @@ class _MainLayoutState extends State<MainLayout> {
                   ),
                   const SizedBox(height: 24),
 
-                  // TABLO VE SAĞ KARTLAR
                   Expanded(
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // TABLO TARAFI
-                        Expanded(
-                          flex: 7,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              // 🔍 ARAMA BARI
-                              Container(
-                                padding: const EdgeInsets.all(12),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFF04171A),
-                                  borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(
-                                    color: const Color(
-                                      0xFF00F0FF,
-                                    ).withOpacity(0.3),
-                                  ),
-                                ),
-                                child: Row(
-                                  children: [
-                                    const Text(
-                                      'Arama',
-                                      style: TextStyle(
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 15,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 12),
-                                    Expanded(
-                                      child: Container(
-                                        height: 38,
-                                        decoration: BoxDecoration(
-                                          color: const Color(0xFF02090B),
-                                          borderRadius: BorderRadius.circular(
-                                            8,
-                                          ),
-                                          border: Border.all(
-                                            color: const Color(
-                                              0xFF00F0FF,
-                                            ).withOpacity(0.5),
-                                          ),
-                                        ),
-                                        child: TextField(
-                                          controller: _searchController,
-                                          onChanged: (value) {
-                                            setState(() {
-                                              _searchQuery = value
-                                                  .trim()
-                                                  .toLowerCase();
-                                            });
-                                          },
-                                          decoration: const InputDecoration(
-                                            prefixIcon: Icon(
-                                              Icons.search,
-                                              color: Color(0xFF00F0FF),
-                                              size: 16,
-                                            ),
-                                            hintText: 'Üye ismi ara...',
-                                            hintStyle: TextStyle(
-                                              color: Color(0xFF627E82),
-                                              fontSize: 12,
-                                            ),
-                                            border: InputBorder.none,
-                                            contentPadding: EdgeInsets.only(
-                                              bottom: 10,
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              const SizedBox(height: 20),
-
-                              const Text(
-                                'Üye Listesi',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              const SizedBox(height: 12),
-
-                              // 🔄 TABLO ALANI
-                              Expanded(
-                                child: Container(
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFF04171A),
-                                    borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(
-                                      color: const Color(
-                                        0xFF00F0FF,
-                                      ).withOpacity(0.15),
-                                    ),
-                                  ),
-                                  child: ClipRRect(
-                                    borderRadius: BorderRadius.circular(12),
-                                    child: Column(
-                                      children: [
-                                        Container(
-                                          color: const Color(0xFF02090B),
-                                          padding: const EdgeInsets.symmetric(
-                                            vertical: 12,
-                                            horizontal: 16,
-                                          ),
-                                          child: const Row(
-                                            children: [
-                                              Expanded(
-                                                flex: 3,
-                                                child: Text(
-                                                  'İsim / Telefon',
-                                                  style: TextStyle(
-                                                    color: Color(0xFF627E82),
-                                                    fontWeight: FontWeight.bold,
-                                                    fontSize: 13,
-                                                  ),
-                                                ),
-                                              ),
-                                              Expanded(
-                                                flex: 2,
-                                                child: Text(
-                                                  'Fingerprint',
-                                                  textAlign: TextAlign.center,
-                                                  style: TextStyle(
-                                                    color: Color(0xFF627E82),
-                                                    fontWeight: FontWeight.bold,
-                                                    fontSize: 13,
-                                                  ),
-                                                ),
-                                              ),
-                                              Expanded(
-                                                flex: 1,
-                                                child: Text(
-                                                  'Kredi',
-                                                  textAlign: TextAlign.center,
-                                                  style: TextStyle(
-                                                    color: Color(0xFF627E82),
-                                                    fontWeight: FontWeight.bold,
-                                                    fontSize: 13,
-                                                  ),
-                                                ),
-                                              ),
-                                              Expanded(
-                                                flex: 2,
-                                                child: Text(
-                                                  'Şirket',
-                                                  textAlign: TextAlign.center,
-                                                  style: TextStyle(
-                                                    color: Color(0xFF627E82),
-                                                    fontWeight: FontWeight.bold,
-                                                    fontSize: 13,
-                                                  ),
-                                                ),
-                                              ),
-                                              Expanded(
-                                                flex: 2,
-                                                child: Text(
-                                                  'İşlemler',
-                                                  textAlign: TextAlign.end,
-                                                  style: TextStyle(
-                                                    color: Color(0xFF627E82),
-                                                    fontWeight: FontWeight.bold,
-                                                    fontSize: 13,
-                                                  ),
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                        Expanded(
-                                          child: StreamBuilder<QuerySnapshot>(
-                                            stream: FirebaseFirestore.instance
-                                                .collection('members')
-                                                .snapshots(),
-                                            builder: (context, snapshot) {
-                                              if (snapshot.hasError)
-                                                return const Center(
-                                                  child: Text('Hata oluştu.'),
-                                                );
-
-                                              if (snapshot.connectionState ==
-                                                  ConnectionState.waiting) {
-                                                return const Center(
-                                                  child:
-                                                      CircularProgressIndicator(
-                                                        color: Color(
-                                                          0xFF00F0FF,
-                                                        ),
-                                                      ),
-                                                );
-                                              }
-
-                                              final docs =
-                                                  snapshot.data?.docs ?? [];
-
-                                              var filteredDocs = docs.where((
-                                                doc,
-                                              ) {
-                                                final data =
-                                                    doc.data()
-                                                        as Map<String, dynamic>;
-                                                final name =
-                                                    (data['name'] ?? '')
-                                                        .toString()
-                                                        .toLowerCase();
-                                                return name.contains(
-                                                  _searchQuery,
-                                                );
-                                              }).toList();
-
-                                              filteredDocs.sort((a, b) {
-                                                final dataA =
-                                                    a.data()
-                                                        as Map<String, dynamic>;
-                                                final dataB =
-                                                    b.data()
-                                                        as Map<String, dynamic>;
-                                                final timeA =
-                                                    dataA['timestamp'] ?? 0;
-                                                final timeB =
-                                                    dataB['timestamp'] ?? 0;
-                                                return timeB.compareTo(timeA);
-                                              });
-
-                                              if (filteredDocs.isEmpty) {
-                                                return const Center(
-                                                  child: Text(
-                                                    'Kayıtlı üye bulunamadı.',
-                                                    style: TextStyle(
-                                                      color: Color(0xFF627E82),
-                                                    ),
-                                                  ),
-                                                );
-                                              }
-
-                                              return ListView.builder(
-                                                itemCount: filteredDocs.length,
-                                                itemBuilder: (context, index) {
-                                                  final data =
-                                                      filteredDocs[index].data()
-                                                          as Map<
-                                                            String,
-                                                            dynamic
-                                                          >;
-                                                  final docId =
-                                                      filteredDocs[index].id;
-
-                                                  return _buildCyberTableRow(
-                                                    context,
-                                                    docId,
-                                                    data['name'] ??
-                                                        'Bilinmeyen Üye',
-                                                    data['phone'] ?? '-',
-                                                    (data['credit'] ?? 0) > 0
-                                                        ? const Color(
-                                                            0xFF00FF66,
-                                                          )
-                                                        : const Color(
-                                                            0xFFFF3B30,
-                                                          ),
-                                                    data['credit'] ?? 0,
-                                                    data['company'] ??
-                                                        'TurniGym',
-                                                  );
-                                                },
-                                              );
-                                            },
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: 20),
-
-                        // SAĞ KONTROL PANELİ
-                        Expanded(
-                          flex: 3,
-                          child: Column(
-                            children: [
-                              Container(
-                                width: double.infinity,
-                                height: 50,
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(12),
-                                  gradient: const LinearGradient(
-                                    colors: [
-                                      Color(0xFF00F0FF),
-                                      Color(0xFFFF6B00),
-                                    ],
-                                  ),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: const Color(
-                                        0xFF00F0FF,
-                                      ).withOpacity(0.4),
-                                      blurRadius: 15,
-                                      spreadRadius: 1,
-                                      offset: const Offset(-2, 0),
-                                    ),
-                                    BoxShadow(
-                                      color: const Color(
-                                        0xFFFF6B00,
-                                      ).withOpacity(0.4),
-                                      blurRadius: 15,
-                                      spreadRadius: 1,
-                                      offset: const Offset(2, 0),
-                                    ),
-                                  ],
-                                ),
-                                child: ElevatedButton.icon(
-                                  onPressed: () {
-                                    showDialog(
-                                      context: context,
-                                      barrierDismissible: false,
-                                      builder: (context) =>
-                                          const AddMemberDialog(),
-                                    );
-                                  },
-                                  icon: const Icon(
-                                    Icons.person_add_alt_1,
-                                    color: Colors.white,
-                                    size: 20,
-                                  ),
-                                  label: const Text(
-                                    'Yeni Üye Ekle',
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 14,
-                                      letterSpacing: 0.5,
-                                      shadows: [
-                                        Shadow(
-                                          color: Colors.black45,
-                                          offset: Offset(1, 1),
-                                          blurRadius: 2,
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: Colors.transparent,
-                                    shadowColor: Colors.transparent,
-                                    foregroundColor: Colors.white,
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(height: 20),
-                              Expanded(
-                                child: Container(
-                                  padding: const EdgeInsets.all(16),
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFF02090B),
-                                    borderRadius: BorderRadius.circular(16),
-                                    border: Border.all(
-                                      color: const Color(
-                                        0xFF00F0FF,
-                                      ).withOpacity(0.2),
-                                    ),
-                                  ),
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      const Text(
-                                        'Cihaz Durumu',
-                                        style: TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 15,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 15),
-                                      const Center(
-                                        child: Text(
-                                          'Aktif',
-                                          style: TextStyle(
-                                            color: Color(0xFF00FF66),
-                                            fontSize: 18,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                      ),
-                                      const SizedBox(height: 10),
-
-                                      Center(
-                                        child: Image.asset(
-                                          'assets/images/cihaz_durumu.png',
-                                          width: 120,
-                                          height: 120,
-                                          fit: BoxFit.contain,
-                                        ),
-                                      ),
-
-                                      const Divider(
-                                        color: Colors.white12,
-                                        height: 24,
-                                      ),
-                                      const Text(
-                                        'Son Geçişler',
-                                        style: TextStyle(
-                                          color: Color(0xFF627E82),
-                                          fontSize: 11,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 10),
-
-                                      Expanded(
-                                        child: StreamBuilder<QuerySnapshot>(
-                                          stream: FirebaseFirestore.instance
-                                              .collection('pass_logs')
-                                              .orderBy(
-                                                'timestamp',
-                                                descending: true,
-                                              )
-                                              .limit(10)
-                                              .snapshots(),
-                                          builder: (context, snapshot) {
-                                            if (snapshot.hasError) {
-                                              return const Center(
-                                                child: Text(
-                                                  'Log hatası.',
-                                                  style: TextStyle(
-                                                    color: Colors.red,
-                                                    fontSize: 11,
-                                                  ),
-                                                ),
-                                              );
-                                            }
-
-                                            if (snapshot.connectionState ==
-                                                ConnectionState.waiting) {
-                                              return const Center(
-                                                child:
-                                                    CircularProgressIndicator(
-                                                      strokeWidth: 2,
-                                                      color: Color(0xFF00F0FF),
-                                                    ),
-                                              );
-                                            }
-
-                                            final logDocs =
-                                                snapshot.data?.docs ?? [];
-
-                                            if (logDocs.isEmpty) {
-                                              return const Center(
-                                                child: Text(
-                                                  'Henüz geçiş kaydı yok.',
-                                                  style: TextStyle(
-                                                    color: Color(0xFF627E82),
-                                                    fontSize: 12,
-                                                  ),
-                                                ),
-                                              );
-                                            }
-
-                                            return ListView.builder(
-                                              itemCount: logDocs.length,
-                                              itemBuilder: (context, index) {
-                                                final logData =
-                                                    logDocs[index].data()
-                                                        as Map<String, dynamic>;
-
-                                                final name =
-                                                    logData['memberName'] ??
-                                                    'Bilinmeyen Üye';
-                                                final date =
-                                                    logData['date'] ?? '-';
-                                                final time =
-                                                    logData['time'] ?? '-';
-                                                final status =
-                                                    logData['status'] ??
-                                                    'Geçiş İzni';
-
-                                                return Padding(
-                                                  padding:
-                                                      const EdgeInsets.symmetric(
-                                                        vertical: 6,
-                                                      ),
-                                                  child: Row(
-                                                    mainAxisAlignment:
-                                                        MainAxisAlignment
-                                                            .spaceBetween,
-                                                    children: [
-                                                      Expanded(
-                                                        child: Column(
-                                                          crossAxisAlignment:
-                                                              CrossAxisAlignment
-                                                                  .start,
-                                                          children: [
-                                                            Text(
-                                                              name,
-                                                              style: const TextStyle(
-                                                                color: Colors
-                                                                    .white,
-                                                                fontSize: 12,
-                                                                fontWeight:
-                                                                    FontWeight
-                                                                        .w600,
-                                                              ),
-                                                              overflow:
-                                                                  TextOverflow
-                                                                      .ellipsis,
-                                                              maxLines: 1,
-                                                            ),
-                                                            Text(
-                                                              '$date  $time',
-                                                              style:
-                                                                  const TextStyle(
-                                                                    color: Color(
-                                                                      0xFF627E82,
-                                                                    ),
-                                                                    fontSize:
-                                                                        10,
-                                                                  ),
-                                                            ),
-                                                          ],
-                                                        ),
-                                                      ),
-                                                      Text(
-                                                        status,
-                                                        style: const TextStyle(
-                                                          color: Color(
-                                                            0xFF00FF66,
-                                                          ),
-                                                          fontSize: 11,
-                                                          fontWeight:
-                                                              FontWeight.bold,
-                                                        ),
-                                                      ),
-                                                    ],
-                                                  ),
-                                                );
-                                              },
-                                            );
-                                          },
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
+                    child: _selectedIndex == 0
+                        ? _buildDashboardView()
+                        : _buildMemberManagementView(),
                   ),
                 ],
               ),
@@ -797,6 +240,877 @@ class _MainLayoutState extends State<MainLayout> {
           ),
         ],
       ),
+    );
+  }
+
+  // ================= 🔒 1. GÖRÜNÜM: KONTROL MERKEZİ =================
+  Widget _buildDashboardView() {
+    String todayStr = DateFormat('dd.MM.yyyy').format(DateTime.now());
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection('members')
+                  .snapshots(),
+              builder: (context, snapshot) {
+                String totalMembers = snapshot.hasData
+                    ? '${snapshot.data!.docs.length}'
+                    : '...';
+                return _buildStatCard(
+                  'TOPLAM AKTİF ÜYE',
+                  totalMembers,
+                  Icons.group_add,
+                  const Color(0xFF00FF66),
+                );
+              },
+            ),
+            const SizedBox(width: 16),
+            StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection('pass_logs')
+                  .where('date', isEqualTo: todayStr)
+                  .snapshots(),
+              builder: (context, snapshot) {
+                String todayPass = snapshot.hasData
+                    ? '${snapshot.data!.docs.length}'
+                    : '...';
+                return _buildStatCard(
+                  'BUGÜNKÜ GEÇİŞ',
+                  todayPass,
+                  Icons.swap_vert,
+                  const Color(0xFF00F0FF),
+                );
+              },
+            ),
+            const SizedBox(width: 16),
+            StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection('pass_logs')
+                  .where('date', isEqualTo: todayStr)
+                  .snapshots(),
+              builder: (context, snapshot) {
+                String todayCredit = snapshot.hasData
+                    ? '${snapshot.data!.docs.length}'
+                    : '...';
+                return _buildStatCard(
+                  'HARCANAN KREDİ',
+                  todayCredit,
+                  Icons.bolt,
+                  const Color(0xFFFF6B00),
+                );
+              },
+            ),
+            const SizedBox(width: 16),
+            _buildStatCard(
+              'DONANIM SAĞLIĞI',
+              '%100',
+              Icons.router,
+              const Color(0xFFFF00F0),
+            ),
+          ],
+        ),
+        const SizedBox(height: 32),
+
+        Expanded(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                flex: 4,
+                child: Container(
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF04171A),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: const Color(0xFF00F0FF).withOpacity(0.15),
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'HIZLI DONANIM AKSİYONLARI',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 1,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      const Text(
+                        'Giriş turnikesini sunucu üzerinden anlık olarak manuel tetikleyebilirsiniz.',
+                        style: TextStyle(
+                          color: Color(0xFF627E82),
+                          fontSize: 12,
+                        ),
+                      ),
+                      const Spacer(),
+
+                      Center(
+                        child: Container(
+                          width: 280,
+                          height: 60,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(30),
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(0xFF00FF66).withOpacity(0.3),
+                                blurRadius: 20,
+                                spreadRadius: 1,
+                              ),
+                            ],
+                          ),
+                          child: ElevatedButton.icon(
+                            // 🌟 SAKSIYI ÇALIŞTIRDIĞIMIZ CANLI KREDİ DÜŞME MOTORU:
+                            onPressed: () async {
+                              try {
+                                // 1. Veritabanındaki en son eklenen üyeyi buluyoruz
+                                final memberSnapshot = await FirebaseFirestore
+                                    .instance
+                                    .collection('members')
+                                    .orderBy('timestamp', descending: true)
+                                    .limit(1)
+                                    .get();
+
+                                if (memberSnapshot.docs.isNotEmpty) {
+                                  final lastMemberDoc =
+                                      memberSnapshot.docs.first;
+                                  final String memberName =
+                                      lastMemberDoc['name'];
+                                  final int currentCredit =
+                                      lastMemberDoc['credit'];
+                                  final String docId = lastMemberDoc.id;
+
+                                  if (currentCredit > 0) {
+                                    // 2. Üyenin kredisini 1 düşürüyoruz
+                                    await FirebaseFirestore.instance
+                                        .collection('members')
+                                        .doc(docId)
+                                        .update({'credit': currentCredit - 1});
+
+                                    // 3. Canlı geçiş logu (pass_logs) fırlatıyoruz
+                                    final now = DateTime.now();
+                                    await FirebaseFirestore.instance
+                                        .collection('pass_logs')
+                                        .add({
+                                          'memberName': memberName,
+                                          'memberId': docId,
+                                          'date': DateFormat(
+                                            'dd.MM.yyyy',
+                                          ).format(now),
+                                          'time': DateFormat(
+                                            'HH:mm:ss',
+                                          ).format(now),
+                                          'status': 'Geçiş İzni',
+                                          'timestamp':
+                                              now.millisecondsSinceEpoch,
+                                        });
+
+                                    if (mounted) {
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                            '⚡ $memberName turnikeden geçti! Kredisi ${currentCredit - 1}\'e düştü.',
+                                          ),
+                                          backgroundColor: const Color(
+                                            0xFF041E22,
+                                          ),
+                                        ),
+                                      );
+                                    }
+                                  } else {
+                                    if (mounted) {
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                            '❌ $memberName isimli üyenin kredisi yetersiz! Geçiş reddedildi.',
+                                          ),
+                                          backgroundColor: Colors.red,
+                                        ),
+                                      );
+                                    }
+                                  }
+                                } else {
+                                  if (mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text(
+                                          '⚠️ Sistemde kayıtlı üye bulunamadı! Önce üye ekleyin.',
+                                        ),
+                                      ),
+                                    );
+                                  }
+                                }
+                              } catch (e) {
+                                print('Hata: $e');
+                              }
+                            },
+                            icon: const Icon(
+                              Icons.lock_open,
+                              color: Colors.black,
+                              size: 24,
+                            ),
+                            label: const Text(
+                              'UZAKTAN TURNIKEYİ AÇ',
+                              style: TextStyle(
+                                color: Colors.black,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF00FF66),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(30),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const Spacer(),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(width: 20),
+
+              Expanded(
+                flex: 4,
+                child: Container(
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF04171A),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: const Color(0xFF00F0FF).withOpacity(0.15),
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'KURUMSAL ÜYE DAĞILIMI',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 1,
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      Expanded(
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: PieChart(
+                                PieChartData(
+                                  sectionsSpace: 4,
+                                  centerSpaceRadius: 40,
+                                  sections: [
+                                    PieChartSectionData(
+                                      color: const Color(0xFF00FF66),
+                                      value: 60,
+                                      title: '%60',
+                                      radius: 25,
+                                      titleStyle: const TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.black,
+                                      ),
+                                    ),
+                                    PieChartSectionData(
+                                      color: const Color(0xFF00F0FF),
+                                      value: 25,
+                                      title: '%25',
+                                      radius: 25,
+                                      titleStyle: const TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.black,
+                                      ),
+                                    ),
+                                    PieChartSectionData(
+                                      color: const Color(0xFFFF6B00),
+                                      value: 15,
+                                      title: '%15',
+                                      radius: 25,
+                                      titleStyle: const TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.black,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            const Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                _ChartLegend(
+                                  color: Color(0xFF00FF66),
+                                  text: 'TurniGym VIP',
+                                ),
+                                SizedBox(height: 8),
+                                _ChartLegend(
+                                  color: Color(0xFF00F0FF),
+                                  text: 'Greyder',
+                                ),
+                                SizedBox(height: 8),
+                                _ChartLegend(
+                                  color: Color(0xFFFF6B00),
+                                  text: 'Mavi',
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStatCard(
+    String title,
+    String value,
+    IconData icon,
+    Color neonColor,
+  ) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: const Color(0xFF04171A),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: neonColor.withOpacity(0.2)),
+          boxShadow: [
+            BoxShadow(
+              color: neonColor.withOpacity(0.03),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    color: Color(0xFF627E82),
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  value,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: neonColor.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(icon, color: neonColor, size: 22),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ================= 👥 2. GÖRÜNÜM: ÜYE VE KREDI YÖNETİMİ =================
+  Widget _buildMemberManagementView() {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          flex: 7,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF04171A),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: const Color(0xFF00F0FF).withOpacity(0.3),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    const Text(
+                      'Arama',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 15,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Container(
+                        height: 38,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF02090B),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: const Color(0xFF00F0FF).withOpacity(0.5),
+                          ),
+                        ),
+                        child: TextField(
+                          controller: _searchController,
+                          onChanged: (value) {
+                            setState(() {
+                              _searchQuery = value.trim().toLowerCase();
+                            });
+                          },
+                          decoration: const InputDecoration(
+                            prefixIcon: Icon(
+                              Icons.search,
+                              color: Color(0xFF00F0FF),
+                              size: 16,
+                            ),
+                            hintText: 'Üye ismi ara...',
+                            hintStyle: TextStyle(
+                              color: Color(0xFF627E82),
+                              fontSize: 12,
+                            ),
+                            border: InputBorder.none,
+                            contentPadding: EdgeInsets.only(bottom: 10),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              const Text(
+                'Üye Listesi',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 12),
+
+              Expanded(
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF04171A),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: const Color(0xFF00F0FF).withOpacity(0.15),
+                    ),
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: Column(
+                      children: [
+                        Container(
+                          color: const Color(0xFF02090B),
+                          padding: const EdgeInsets.symmetric(
+                            vertical: 12,
+                            horizontal: 16,
+                          ),
+                          child: const Row(
+                            children: [
+                              Expanded(
+                                flex: 3,
+                                child: Text(
+                                  'İsim / Telefon',
+                                  style: TextStyle(
+                                    color: Color(0xFF627E82),
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              ),
+                              Expanded(
+                                flex: 2,
+                                child: Text(
+                                  'Fingerprint',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    color: Color(0xFF627E82),
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              ),
+                              Expanded(
+                                flex: 1,
+                                child: Text(
+                                  'Kredi',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    color: Color(0xFF627E82),
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              ),
+                              Expanded(
+                                flex: 2,
+                                child: Text(
+                                  'Şirket',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    color: Color(0xFF627E82),
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              ),
+                              Expanded(
+                                flex: 2,
+                                child: Text(
+                                  'İşlemler',
+                                  textAlign: TextAlign.end,
+                                  style: TextStyle(
+                                    color: Color(0xFF627E82),
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Expanded(
+                          child: StreamBuilder<QuerySnapshot>(
+                            stream: FirebaseFirestore.instance
+                                .collection('members')
+                                .snapshots(),
+                            builder: (context, snapshot) {
+                              if (snapshot.hasError)
+                                return const Center(
+                                  child: Text('Hata oluştu.'),
+                                );
+                              if (snapshot.connectionState ==
+                                  ConnectionState.waiting) {
+                                return const Center(
+                                  child: CircularProgressIndicator(
+                                    color: Color(0xFF00F0FF),
+                                  ),
+                                );
+                              }
+
+                              final docs = snapshot.data?.docs ?? [];
+                              var filteredDocs = docs.where((doc) {
+                                final data = doc.data() as Map<String, dynamic>;
+                                final name = (data['name'] ?? '')
+                                    .toString()
+                                    .toLowerCase();
+                                return name.contains(_searchQuery);
+                              }).toList();
+
+                              filteredDocs.sort((a, b) {
+                                final dataA = a.data() as Map<String, dynamic>;
+                                final dataB = b.data() as Map<String, dynamic>;
+                                final timeA = dataA['timestamp'] ?? 0;
+                                final timeB = dataB['timestamp'] ?? 0;
+                                return timeB.compareTo(timeA);
+                              });
+
+                              if (filteredDocs.isEmpty) {
+                                return const Center(
+                                  child: Text(
+                                    'Kayıtlı üye bulunamadı.',
+                                    style: TextStyle(color: Color(0xFF627E82)),
+                                  ),
+                                );
+                              }
+
+                              return ListView.builder(
+                                itemCount: filteredDocs.length,
+                                itemBuilder: (context, index) {
+                                  final data =
+                                      filteredDocs[index].data()
+                                          as Map<String, dynamic>;
+                                  final docId = filteredDocs[index].id;
+
+                                  return _buildCyberTableRow(
+                                    context,
+                                    docId,
+                                    data['name'] ?? 'Bilinmeyen Üye',
+                                    data['phone'] ?? '-',
+                                    (data['credit'] ?? 0) > 0
+                                        ? const Color(0xFF00FF66)
+                                        : const Color(0xFFFF3B30),
+                                    data['credit'] ?? 0,
+                                    data['company'] ?? 'TurniGym',
+                                  );
+                                },
+                              );
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(width: 20),
+
+        Expanded(
+          flex: 3,
+          child: Column(
+            children: [
+              Container(
+                width: double.infinity,
+                height: 50,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF00F0FF), Color(0xFFFF6B00)],
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF00F0FF).withOpacity(0.4),
+                      blurRadius: 15,
+                      spreadRadius: 1,
+                      offset: const Offset(-2, 0),
+                    ),
+                    BoxShadow(
+                      color: const Color(0xFFFF6B00).withOpacity(0.4),
+                      blurRadius: 15,
+                      spreadRadius: 1,
+                      offset: const Offset(2, 0),
+                    ),
+                  ],
+                ),
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    showDialog(
+                      context: context,
+                      barrierDismissible: false,
+                      builder: (context) => const AddMemberDialog(),
+                    );
+                  },
+                  icon: const Icon(
+                    Icons.person_add_alt_1,
+                    color: Colors.white,
+                    size: 20,
+                  ),
+                  label: const Text(
+                    'Yeni Üye Ekle',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.transparent,
+                    shadowColor: Colors.transparent,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              Expanded(
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF02090B),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: const Color(0xFF00F0FF).withOpacity(0.2),
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Cihaz Durumu',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 15),
+                      const Center(
+                        child: Text(
+                          'Aktif',
+                          style: TextStyle(
+                            color: Color(0xFF00FF66),
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      Center(
+                        child: Image.asset(
+                          'assets/images/cihaz_durumu.png',
+                          width: 120,
+                          height: 120,
+                          fit: BoxFit.contain,
+                        ),
+                      ),
+                      const Divider(color: Colors.white12, height: 24),
+                      const Text(
+                        'Son Geçişler',
+                        style: TextStyle(
+                          color: Color(0xFF627E82),
+                          fontSize: 11,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      Expanded(
+                        child: StreamBuilder<QuerySnapshot>(
+                          stream: FirebaseFirestore.instance
+                              .collection('pass_logs')
+                              .orderBy('timestamp', descending: true)
+                              .limit(10)
+                              .snapshots(),
+                          builder: (context, snapshot) {
+                            if (snapshot.hasError)
+                              return const Center(
+                                child: Text(
+                                  'Log hatası.',
+                                  style: TextStyle(
+                                    color: Colors.red,
+                                    fontSize: 11,
+                                  ),
+                                ),
+                              );
+                            if (snapshot.connectionState ==
+                                ConnectionState.waiting) {
+                              return const Center(
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Color(0xFF00F0FF),
+                                ),
+                              );
+                            }
+                            final logDocs = snapshot.data?.docs ?? [];
+                            if (logDocs.isEmpty)
+                              return const Center(
+                                child: Text(
+                                  'Henüz geçiş kaydı yok.',
+                                  style: TextStyle(
+                                    color: Color(0xFF627E82),
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              );
+
+                            return ListView.builder(
+                              itemCount: logDocs.length,
+                              itemBuilder: (context, index) {
+                                final logData =
+                                    logDocs[index].data()
+                                        as Map<String, dynamic>;
+                                final name =
+                                    logData['memberName'] ?? 'Bilinmeyen Üye';
+                                final date = logData['date'] ?? '-';
+                                final time = logData['time'] ?? '-';
+                                final status =
+                                    logData['status'] ?? 'Geçiş İzni';
+
+                                return Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 6,
+                                  ),
+                                  child: Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              name,
+                                              style: const TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                              overflow: TextOverflow.ellipsis,
+                                              maxLines: 1,
+                                            ),
+                                            Text(
+                                              '$date  $time',
+                                              style: const TextStyle(
+                                                color: Color(0xFF627E82),
+                                                fontSize: 10,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      Text(
+                                        status,
+                                        style: const TextStyle(
+                                          color: Color(0xFF00FF66),
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              },
+                            );
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 
@@ -905,10 +1219,31 @@ class _MainLayoutState extends State<MainLayout> {
   }
 }
 
+class _ChartLegend extends StatelessWidget {
+  final Color color;
+  final String text;
+  const _ChartLegend({required this.color, required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Container(
+          width: 12,
+          height: 12,
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+        ),
+        const SizedBox(width: 8),
+        Text(text, style: const TextStyle(color: Colors.white70, fontSize: 12)),
+      ],
+    );
+  }
+}
+
+// ================= KAREKOD DİYALOG POP-UP'I =================
 class QrDisplayDialog extends StatelessWidget {
   final String memberId;
   final String memberName;
-
   const QrDisplayDialog({
     super.key,
     required this.memberId,
@@ -961,7 +1296,6 @@ class QrDisplayDialog extends StatelessWidget {
             ),
             const Divider(color: Colors.white12, height: 24),
             const SizedBox(height: 6),
-
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
@@ -978,7 +1312,6 @@ class QrDisplayDialog extends StatelessWidget {
                 ),
               ),
             ),
-
             const SizedBox(height: 16),
             Text(
               'ID: $memberId',
@@ -1012,9 +1345,9 @@ class QrDisplayDialog extends StatelessWidget {
   }
 }
 
+// ================= 👥 YENİ NESİL GENİŞLETİLMİŞ ÜYE KAYIT DIALOGU =================
 class AddMemberDialog extends StatefulWidget {
   const AddMemberDialog({super.key});
-
   @override
   State<AddMemberDialog> createState() => _AddMemberDialogState();
 }
@@ -1023,13 +1356,30 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
   final _nameCtrl = TextEditingController();
   final _phoneCtrl = TextEditingController();
   final _creditCtrl = TextEditingController();
+  final _emergencyPhoneCtrl = TextEditingController();
+
+  String _selectedGender = 'Erkek';
+  String _selectedBloodGroup = 'A RH+';
   bool _isLoading = false;
+
+  final List<String> _genders = ['Erkek', 'Kadın'];
+  final List<String> _bloodGroups = [
+    'A RH+',
+    'A RH-',
+    'B RH+',
+    'B RH-',
+    'AB RH+',
+    'AB RH-',
+    '0 RH+',
+    '0 RH-',
+  ];
 
   @override
   void dispose() {
     _nameCtrl.dispose();
     _phoneCtrl.dispose();
     _creditCtrl.dispose();
+    _emergencyPhoneCtrl.dispose();
     super.dispose();
   }
 
@@ -1037,10 +1387,14 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
     final name = _nameCtrl.text.trim();
     final phone = _phoneCtrl.text.trim();
     final creditText = _creditCtrl.text.trim();
+    final emergencyPhone = _emergencyPhoneCtrl.text.trim();
 
-    if (name.isEmpty || phone.isEmpty || creditText.isEmpty) return;
+    if (name.isEmpty ||
+        phone.isEmpty ||
+        creditText.isEmpty ||
+        emergencyPhone.isEmpty)
+      return;
     final credit = int.tryParse(creditText) ?? 0;
-
     setState(() => _isLoading = true);
 
     try {
@@ -1048,6 +1402,10 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
         'name': name,
         'phone': phone,
         'credit': credit,
+        'emergencyPhone': emergencyPhone,
+        'gender': _selectedGender,
+        'bloodGroup': _selectedBloodGroup,
+        'status': 'Active',
         'company': 'TurniGym',
         'timestamp': DateTime.now().millisecondsSinceEpoch,
       });
@@ -1062,7 +1420,7 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
     return Dialog(
       backgroundColor: Colors.transparent,
       child: Container(
-        width: 400,
+        width: 440,
         padding: const EdgeInsets.all(24),
         decoration: BoxDecoration(
           color: const Color(0xFF04171A),
@@ -1077,7 +1435,7 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'YENİ ÜYE EKLE',
+              'YENİ ÜYE SİBER KAYIT',
               style: TextStyle(
                 color: Colors.white,
                 fontSize: 18,
@@ -1088,22 +1446,58 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
             const SizedBox(height: 20),
             _buildField('İsim Soyisim', Icons.person_outline, _nameCtrl),
             const SizedBox(height: 12),
-            _buildField('Telefon', Icons.phone_outlined, _phoneCtrl),
+            _buildField('Telefon Numarası', Icons.phone_outlined, _phoneCtrl),
             const SizedBox(height: 12),
             _buildField(
-              'Kredi',
+              'Acil Durum Yakın Telefonu',
+              Icons.contact_phone_outlined,
+              _emergencyPhoneCtrl,
+            ),
+            const SizedBox(height: 12),
+            _buildField(
+              'Yüklenecek Kredi',
               Icons.credit_score_outlined,
               _creditCtrl,
               isNum: true,
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 12),
+
+            Row(
+              children: [
+                Expanded(
+                  child: _buildDropdownField(
+                    'Cinsiyet',
+                    Icons.wc,
+                    _selectedGender,
+                    _genders,
+                    (value) {
+                      setState(() => _selectedGender = value!);
+                    },
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _buildDropdownField(
+                    'Kan Grubu',
+                    Icons.bloodtype_outlined,
+                    _selectedBloodGroup,
+                    _bloodGroups,
+                    (value) {
+                      setState(() => _selectedBloodGroup = value!);
+                    },
+                  ),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 24),
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
                 TextButton(
                   onPressed: _isLoading ? null : () => Navigator.pop(context),
                   child: const Text(
-                    'Iptal',
+                    'İptal',
                     style: TextStyle(color: Color(0xFF627E82)),
                   ),
                 ),
@@ -1160,6 +1554,50 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
         filled: true,
         fillColor: const Color(0xFF02090B),
         contentPadding: const EdgeInsets.symmetric(vertical: 10),
+      ),
+    );
+  }
+
+  Widget _buildDropdownField(
+    String label,
+    IconData icon,
+    String selectedValue,
+    List<String> items,
+    ValueChanged<String?> onChanged,
+  ) {
+    return DropdownButtonFormField<String>(
+      value: selectedValue,
+      items: items
+          .map(
+            (item) => DropdownMenuItem(
+              value: item,
+              child: Text(item, style: const TextStyle(fontSize: 14)),
+            ),
+          )
+          .toList(),
+      onChanged: onChanged,
+      dropdownColor: const Color(0xFF04171A),
+      style: const TextStyle(color: Colors.white),
+      decoration: InputDecoration(
+        labelText: label,
+        labelStyle: const TextStyle(color: Color(0xFF627E82), fontSize: 13),
+        prefixIcon: Icon(icon, color: const Color(0xFF00F0FF), size: 18),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: BorderSide(
+            color: const Color(0xFF00F0FF).withOpacity(0.3),
+          ),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: const BorderSide(color: Color(0xFF00F0FF)),
+        ),
+        filled: true,
+        fillColor: const Color(0xFF02090B),
+        contentPadding: const EdgeInsets.symmetric(
+          vertical: 10,
+          horizontal: 10,
+        ),
       ),
     );
   }
