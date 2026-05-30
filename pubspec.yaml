@@ -29,3 +29,5 @@ flutter:
   assets:
     - assets/images/turnigym.png
     - assets/images/cihaz_durumu.png
+    - assets/images/kiz.png
+    - assets/images/erkek.png

@@ -367,10 +367,8 @@ class _MainLayoutState extends State<MainLayout> {
                             ],
                           ),
                           child: ElevatedButton.icon(
-                            // 🌟 SAKSIYI ÇALIŞTIRDIĞIMIZ CANLI KREDİ DÜŞME MOTORU:
                             onPressed: () async {
                               try {
-                                // 1. Veritabanındaki en son eklenen üyeyi buluyoruz
                                 final memberSnapshot = await FirebaseFirestore
                                     .instance
                                     .collection('members')
@@ -388,13 +386,11 @@ class _MainLayoutState extends State<MainLayout> {
                                   final String docId = lastMemberDoc.id;
 
                                   if (currentCredit > 0) {
-                                    // 2. Üyenin kredisini 1 düşürüyoruz
                                     await FirebaseFirestore.instance
                                         .collection('members')
                                         .doc(docId)
                                         .update({'credit': currentCredit - 1});
 
-                                    // 3. Canlı geçiş logu (pass_logs) fırlatıyoruz
                                     final now = DateTime.now();
                                     await FirebaseFirestore.instance
                                         .collection('pass_logs')
@@ -721,11 +717,11 @@ class _MainLayoutState extends State<MainLayout> {
               const SizedBox(height: 20),
 
               const Text(
-                'Üye Listesi',
+                'Üye Listesi (Profil detayları ve güncelleme için satıra tıklayın)',
                 style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF627E82),
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
                 ),
               ),
               const SizedBox(height: 12),
@@ -752,9 +748,10 @@ class _MainLayoutState extends State<MainLayout> {
                           child: const Row(
                             children: [
                               Expanded(
-                                flex: 3,
+                                flex: 2,
                                 child: Text(
-                                  'İsim / Telefon',
+                                  'Profil',
+                                  textAlign: TextAlign.center,
                                   style: TextStyle(
                                     color: Color(0xFF627E82),
                                     fontWeight: FontWeight.bold,
@@ -763,10 +760,9 @@ class _MainLayoutState extends State<MainLayout> {
                                 ),
                               ),
                               Expanded(
-                                flex: 2,
+                                flex: 3,
                                 child: Text(
-                                  'Fingerprint',
-                                  textAlign: TextAlign.center,
+                                  'İsim / Telefon',
                                   style: TextStyle(
                                     color: Color(0xFF627E82),
                                     fontWeight: FontWeight.bold,
@@ -869,13 +865,7 @@ class _MainLayoutState extends State<MainLayout> {
                                   return _buildCyberTableRow(
                                     context,
                                     docId,
-                                    data['name'] ?? 'Bilinmeyen Üye',
-                                    data['phone'] ?? '-',
-                                    (data['credit'] ?? 0) > 0
-                                        ? const Color(0xFF00FF66)
-                                        : const Color(0xFFFF3B30),
-                                    data['credit'] ?? 0,
-                                    data['company'] ?? 'TurniGym',
+                                    data,
                                   );
                                 },
                               );
@@ -924,7 +914,7 @@ class _MainLayoutState extends State<MainLayout> {
                     showDialog(
                       context: context,
                       barrierDismissible: false,
-                      builder: (context) => const AddMemberDialog(),
+                      builder: (context) => const MemberFormDialog(),
                     );
                   },
                   icon: const Icon(
@@ -1117,103 +1107,130 @@ class _MainLayoutState extends State<MainLayout> {
   Widget _buildCyberTableRow(
     BuildContext context,
     String docId,
-    String name,
-    String phone,
-    Color fingerColor,
-    int credit,
-    String company,
+    Map<String, dynamic> data,
   ) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-      decoration: const BoxDecoration(
-        border: Border(bottom: BorderSide(color: Color(0xFF02171A))),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            flex: 3,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  name,
-                  style: const TextStyle(
-                    color: Color(0xFF00F0FF),
-                    fontWeight: FontWeight.w600,
+    final String name = data['name'] ?? 'Bilinmeyen Üye';
+    final String phone = data['phone'] ?? '-';
+    final int credit = data['credit'] ?? 0;
+    final String company = data['company'] ?? 'TurniGym';
+    final String gender = data['gender'] ?? 'Erkek';
+    final bool isFemale = gender == 'Kadın';
+
+    return InkWell(
+      onTap: () {
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (context) =>
+              MemberFormDialog(docId: docId, existingData: data),
+        );
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+        decoration: const BoxDecoration(
+          border: Border(bottom: BorderSide(color: Color(0xFF02171A))),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              flex: 2,
+              child: Center(
+                child: Container(
+                  width: 32,
+                  height: 32,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    image: DecorationImage(
+                      image: AssetImage(
+                        isFemale
+                            ? 'assets/images/kiz.png'
+                            : 'assets/images/erkek.png',
+                      ),
+                      fit: BoxFit.cover,
+                    ),
                   ),
                 ),
-                Text(
-                  phone,
-                  style: const TextStyle(
-                    color: Color(0xFF627E82),
-                    fontSize: 11,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Expanded(
-            flex: 2,
-            child: Center(
-              child: Icon(Icons.fingerprint, color: fingerColor, size: 22),
-            ),
-          ),
-          Expanded(
-            flex: 1,
-            child: Center(
-              child: Text(
-                '$credit',
-                style: const TextStyle(color: Colors.white),
               ),
             ),
-          ),
-          Expanded(
-            flex: 2,
-            child: Center(
-              child: Text(
-                company,
-                style: const TextStyle(color: Color(0xFF627E82)),
+            Expanded(
+              flex: 3,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    name,
+                    style: const TextStyle(
+                      color: Color(0xFF00F0FF),
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  Text(
+                    phone,
+                    style: const TextStyle(
+                      color: Color(0xFF627E82),
+                      fontSize: 11,
+                    ),
+                  ),
+                ],
               ),
             ),
-          ),
-          Expanded(
-            flex: 2,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                IconButton(
-                  icon: const Icon(
-                    Icons.qr_code_2_outlined,
-                    color: Color(0xFF00F0FF),
-                    size: 18,
-                  ),
-                  tooltip: 'Karekod Oluştur',
-                  onPressed: () {
-                    showDialog(
-                      context: context,
-                      builder: (context) =>
-                          QrDisplayDialog(memberId: docId, memberName: name),
-                    );
-                  },
+            Expanded(
+              flex: 1,
+              child: Center(
+                child: Text(
+                  '$credit',
+                  style: const TextStyle(color: Colors.white),
                 ),
-                const SizedBox(width: 4),
-                IconButton(
-                  icon: const Icon(
-                    Icons.delete_outline,
-                    color: Color(0xFFFF3B30),
-                    size: 16,
-                  ),
-                  onPressed: () async {
-                    await FirebaseFirestore.instance
-                        .collection('members')
-                        .doc(docId)
-                        .delete();
-                  },
-                ),
-              ],
+              ),
             ),
-          ),
-        ],
+            Expanded(
+              flex: 2,
+              child: Center(
+                child: Text(
+                  company,
+                  style: const TextStyle(color: Color(0xFF627E82)),
+                ),
+              ),
+            ),
+            Expanded(
+              flex: 2,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  IconButton(
+                    icon: const Icon(
+                      Icons.qr_code_2_outlined,
+                      color: Color(0xFF00F0FF),
+                      size: 18,
+                    ),
+                    tooltip: 'Karekod Oluştur',
+                    onPressed: () {
+                      showDialog(
+                        context: context,
+                        builder: (context) =>
+                            QrDisplayDialog(memberId: docId, memberName: name),
+                      );
+                    },
+                  ),
+                  const SizedBox(width: 4),
+                  IconButton(
+                    icon: const Icon(
+                      Icons.delete_outline,
+                      color: Color(0xFFFF3B30),
+                      size: 16,
+                    ),
+                    onPressed: () async {
+                      await FirebaseFirestore.instance
+                          .collection('members')
+                          .doc(docId)
+                          .delete();
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1345,25 +1362,33 @@ class QrDisplayDialog extends StatelessWidget {
   }
 }
 
-// ================= 👥 YENİ NESİL GENİŞLETİLMİŞ ÜYE KAYIT DIALOGU =================
-class AddMemberDialog extends StatefulWidget {
-  const AddMemberDialog({super.key});
+// ================= 🔮 PREMIUM SAAS GÜNCELLEME MOTORLU FORM DİYALOGU =================
+class MemberFormDialog extends StatefulWidget {
+  final String? docId;
+  final Map<String, dynamic>? existingData;
+
+  const MemberFormDialog({super.key, this.docId, this.existingData});
+
   @override
-  State<AddMemberDialog> createState() => _AddMemberDialogState();
+  State<MemberFormDialog> createState() => _MemberFormDialogState();
 }
 
-class _AddMemberDialogState extends State<AddMemberDialog> {
+class _MemberFormDialogState extends State<MemberFormDialog> {
+  final _formKey = GlobalKey<FormState>();
+
   final _nameCtrl = TextEditingController();
   final _phoneCtrl = TextEditingController();
   final _creditCtrl = TextEditingController();
   final _emergencyPhoneCtrl = TextEditingController();
+  final _notesCtrl = TextEditingController();
 
   String _selectedGender = 'Erkek';
-  String _selectedBloodGroup = 'A RH+';
+  String _selectedBloodGroup = 'Belirtilmemiş';
   bool _isLoading = false;
 
   final List<String> _genders = ['Erkek', 'Kadın'];
   final List<String> _bloodGroups = [
+    'Belirtilmemiş',
     'A RH+',
     'A RH-',
     'B RH+',
@@ -1374,41 +1399,67 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
     '0 RH-',
   ];
 
+  bool get isEditMode => widget.docId != null;
+
+  @override
+  void initState() {
+    super.initState();
+    if (isEditMode && widget.existingData != null) {
+      final data = widget.existingData!;
+      _nameCtrl.text = data['name'] ?? '';
+      _phoneCtrl.text = data['phone'] ?? '';
+      _creditCtrl.text = (data['credit'] ?? 0).toString();
+      _emergencyPhoneCtrl.text = data['emergencyPhone'] ?? '';
+      _notesCtrl.text = data['notes'] ?? '';
+      _selectedGender = data['gender'] ?? 'Erkek';
+      _selectedBloodGroup = data['bloodGroup'] ?? 'Belirtilmemiş';
+    }
+  }
+
   @override
   void dispose() {
     _nameCtrl.dispose();
     _phoneCtrl.dispose();
     _creditCtrl.dispose();
     _emergencyPhoneCtrl.dispose();
+    _notesCtrl.dispose();
     super.dispose();
   }
 
   Future<void> _save() async {
+    if (!_formKey.currentState!.validate()) return;
+
     final name = _nameCtrl.text.trim();
     final phone = _phoneCtrl.text.trim();
-    final creditText = _creditCtrl.text.trim();
+    final credit = int.tryParse(_creditCtrl.text.trim()) ?? 0;
     final emergencyPhone = _emergencyPhoneCtrl.text.trim();
+    final notes = _notesCtrl.text.trim();
 
-    if (name.isEmpty ||
-        phone.isEmpty ||
-        creditText.isEmpty ||
-        emergencyPhone.isEmpty)
-      return;
-    final credit = int.tryParse(creditText) ?? 0;
     setState(() => _isLoading = true);
 
     try {
-      await FirebaseFirestore.instance.collection('members').add({
+      final Map<String, dynamic> payload = {
         'name': name,
         'phone': phone,
         'credit': credit,
         'emergencyPhone': emergencyPhone,
         'gender': _selectedGender,
         'bloodGroup': _selectedBloodGroup,
-        'status': 'Active',
-        'company': 'TurniGym',
-        'timestamp': DateTime.now().millisecondsSinceEpoch,
-      });
+        'notes': notes,
+        'company': widget.existingData?['company'] ?? 'TurniGym',
+      };
+
+      if (isEditMode) {
+        await FirebaseFirestore.instance
+            .collection('members')
+            .doc(widget.docId)
+            .update(payload);
+      } else {
+        payload['status'] = 'Active';
+        payload['timestamp'] = DateTime.now().millisecondsSinceEpoch;
+        await FirebaseFirestore.instance.collection('members').add(payload);
+      }
+
       if (mounted) Navigator.pop(context);
     } catch (e) {
       if (mounted) setState(() => _isLoading = false);
@@ -1417,139 +1468,298 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
 
   @override
   Widget build(BuildContext context) {
+    bool isFemale = _selectedGender == 'Kadın';
+
     return Dialog(
       backgroundColor: Colors.transparent,
       child: Container(
-        width: 440,
+        width: 460,
         padding: const EdgeInsets.all(24),
         decoration: BoxDecoration(
           color: const Color(0xFF04171A),
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: const Color(0xFF00F0FF).withOpacity(0.5),
+            color: isEditMode
+                ? const Color(0xFFFF6B00)
+                : const Color(0xFF00F0FF),
             width: 2,
           ),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'YENİ ÜYE SİBER KAYIT',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 1,
-              ),
-            ),
-            const SizedBox(height: 20),
-            _buildField('İsim Soyisim', Icons.person_outline, _nameCtrl),
-            const SizedBox(height: 12),
-            _buildField('Telefon Numarası', Icons.phone_outlined, _phoneCtrl),
-            const SizedBox(height: 12),
-            _buildField(
-              'Acil Durum Yakın Telefonu',
-              Icons.contact_phone_outlined,
-              _emergencyPhoneCtrl,
-            ),
-            const SizedBox(height: 12),
-            _buildField(
-              'Yüklenecek Kredi',
-              Icons.credit_score_outlined,
-              _creditCtrl,
-              isNum: true,
-            ),
-            const SizedBox(height: 12),
-
-            Row(
-              children: [
-                Expanded(
-                  child: _buildDropdownField(
-                    'Cinsiyet',
-                    Icons.wc,
-                    _selectedGender,
-                    _genders,
-                    (value) {
-                      setState(() => _selectedGender = value!);
-                    },
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _buildDropdownField(
-                    'Kan Grubu',
-                    Icons.bloodtype_outlined,
-                    _selectedBloodGroup,
-                    _bloodGroups,
-                    (value) {
-                      setState(() => _selectedBloodGroup = value!);
-                    },
-                  ),
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 24),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                TextButton(
-                  onPressed: _isLoading ? null : () => Navigator.pop(context),
-                  child: const Text(
-                    'İptal',
-                    style: TextStyle(color: Color(0xFF627E82)),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                ElevatedButton(
-                  onPressed: _isLoading ? null : _save,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF00FF66),
-                    foregroundColor: Colors.black,
-                  ),
-                  child: _isLoading
-                      ? const SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.black,
-                          ),
-                        )
-                      : const Text('KAYDET'),
-                ),
-              ],
+          boxShadow: [
+            BoxShadow(
+              color: isEditMode
+                  ? const Color(0xFFFF6B00).withOpacity(0.1)
+                  : const Color(0xFF00F0FF).withOpacity(0.1),
+              blurRadius: 15,
             ),
           ],
+        ),
+        child: Form(
+          key: _formKey,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 32,
+                      backgroundColor: const Color(0xFF02090B),
+                      backgroundImage: AssetImage(
+                        isFemale
+                            ? 'assets/images/kiz.png'
+                            : 'assets/images/erkek.png',
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'ÜYE PROFİLİ',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            isEditMode
+                                ? 'ID: ${widget.docId}'
+                                : 'Durum: Eksiksiz Veri Doğrulama',
+                            style: const TextStyle(
+                              color: Color(0xFF627E82),
+                              fontSize: 10,
+                              fontFamily: 'monospace',
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (isEditMode)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF00FF66).withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(
+                            color: const Color(0xFF00FF66).withOpacity(0.4),
+                          ),
+                        ),
+                        child: const Text(
+                          'AKTİF',
+                          style: TextStyle(
+                            color: Color(0xFF00FF66),
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+                const Divider(color: Colors.white12, height: 24),
+
+                _buildValidatableField(
+                  'İsim Soyisim *',
+                  Icons.person_outline,
+                  _nameCtrl,
+                  isRequired: true,
+                ),
+                const SizedBox(height: 12),
+
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildValidatableField(
+                        'Telefon (0XXX XXX XX XX) *',
+                        Icons.phone_outlined,
+                        _phoneCtrl,
+                        isRequired: true,
+                        isPhoneFormat: true,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _buildValidatableField(
+                        'Kredi Bakiyesi *',
+                        Icons.credit_score_outlined,
+                        _creditCtrl,
+                        isNum: true,
+                        isRequired: true,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+
+                _buildValidatableField(
+                  'Acil Durum Yakın Telefonu (Opsiyonel)',
+                  Icons.contact_phone_outlined,
+                  _emergencyPhoneCtrl,
+                  isRequired: false,
+                ),
+                const SizedBox(height: 12),
+
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildDropdownField(
+                        'Cinsiyet *',
+                        Icons.wc,
+                        _selectedGender,
+                        _genders,
+                        (value) {
+                          setState(() => _selectedGender = value!);
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _buildDropdownField(
+                        'Kan Grubu',
+                        Icons.bloodtype_outlined,
+                        _selectedBloodGroup,
+                        _bloodGroups,
+                        (value) {
+                          setState(() => _selectedBloodGroup = value!);
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+
+                TextFormField(
+                  controller: _notesCtrl,
+                  maxLines: 3,
+                  style: const TextStyle(color: Colors.white, fontSize: 13),
+                  decoration: InputDecoration(
+                    labelText:
+                        'Sağlık ve Özel Notlar (Astım, Sakatlık, Önemli Notlar...)',
+                    labelStyle: const TextStyle(
+                      color: Color(0xFF627E82),
+                      fontSize: 12,
+                    ),
+                    prefixIcon: const Icon(
+                      Icons.assignment_outlined,
+                      color: Color(0xFF00F0FF),
+                      size: 18,
+                    ),
+                    enabledBorder: const OutlineInputBorder(
+                      borderRadius: BorderRadius.all(Radius.circular(8)),
+                      borderSide: BorderSide(
+                        color: Color(0xFF00F0FF),
+                        width: 0.3,
+                      ),
+                    ),
+                    focusedBorder: const OutlineInputBorder(
+                      borderRadius: BorderRadius.all(Radius.circular(8)),
+                      borderSide: BorderSide(color: Color(0xFF00F0FF)),
+                    ),
+                    filled: true,
+                    fillColor: const Color(0xFF02090B),
+                  ),
+                ),
+
+                const SizedBox(height: 24),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton(
+                      onPressed: _isLoading
+                          ? null
+                          : () => Navigator.pop(context),
+                      child: const Text(
+                        'İptal',
+                        style: TextStyle(color: Color(0xFF627E82)),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    ElevatedButton(
+                      onPressed: _isLoading ? null : _save,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: isEditMode
+                            ? const Color(0xFFFF6B00)
+                            : const Color(0xFF00FF66),
+                        foregroundColor: Colors.black,
+                      ),
+                      child: _isLoading
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.black,
+                              ),
+                            )
+                          : Text(
+                              isEditMode ? 'DEĞİŞİKLİKLERİ KAYDET' : 'KAYDET',
+                            ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildField(
+  Widget _buildValidatableField(
     String label,
     IconData icon,
     TextEditingController ctrl, {
     bool isNum = false,
+    bool isRequired = false,
+    bool isPhoneFormat = false,
   }) {
-    return TextField(
+    return TextFormField(
       controller: ctrl,
-      keyboardType: isNum ? TextInputType.number : TextInputType.text,
+      keyboardType: (isNum || isPhoneFormat)
+          ? TextInputType.number
+          : TextInputType.text,
       style: const TextStyle(color: Colors.white, fontSize: 14),
+      validator: (value) {
+        if (isRequired && (value == null || value.trim().isEmpty)) {
+          return 'Bu alan mecburi bırakılamaz!';
+        }
+        if (isRequired && isNum && int.tryParse(value!.trim()) == null) {
+          return 'Lütfen geçerli bir sayı girin!';
+        }
+        if (isPhoneFormat && value != null && value.trim().isNotEmpty) {
+          if (value.trim().length != 14) {
+            return 'Telefon 0XXX XXX XX XX formatında olmalıdır!';
+          }
+        }
+        return null;
+      },
       decoration: InputDecoration(
         labelText: label,
         labelStyle: const TextStyle(color: Color(0xFF627E82), fontSize: 13),
         prefixIcon: Icon(icon, color: const Color(0xFF00F0FF), size: 18),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(
-            color: const Color(0xFF00F0FF).withOpacity(0.3),
-          ),
+        enabledBorder: const OutlineInputBorder(
+          borderRadius: BorderRadius.all(Radius.circular(8)),
+          borderSide: BorderSide(color: Color(0xFF00F0FF), width: 0.3),
         ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: const BorderSide(color: Color(0xFF00F0FF)),
+        focusedBorder: const OutlineInputBorder(
+          borderRadius: BorderRadius.all(Radius.circular(8)),
+          borderSide: BorderSide(color: Color(0xFF00F0FF)),
+        ),
+        errorBorder: const OutlineInputBorder(
+          borderRadius: BorderRadius.all(Radius.circular(8)),
+          borderSide: BorderSide(color: Colors.red),
+        ),
+        focusedErrorBorder: const OutlineInputBorder(
+          borderRadius: BorderRadius.all(Radius.circular(8)),
+          borderSide: BorderSide(color: Colors.red, width: 2),
         ),
         filled: true,
         fillColor: const Color(0xFF02090B),
@@ -1582,15 +1792,13 @@ class _AddMemberDialogState extends State<AddMemberDialog> {
         labelText: label,
         labelStyle: const TextStyle(color: Color(0xFF627E82), fontSize: 13),
         prefixIcon: Icon(icon, color: const Color(0xFF00F0FF), size: 18),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(
-            color: const Color(0xFF00F0FF).withOpacity(0.3),
-          ),
+        enabledBorder: const OutlineInputBorder(
+          borderRadius: BorderRadius.all(Radius.circular(8)),
+          borderSide: BorderSide(color: Color(0xFF00F0FF), width: 0.3),
         ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: const BorderSide(color: Color(0xFF00F0FF)),
+        focusedBorder: const OutlineInputBorder(
+          borderRadius: BorderRadius.all(Radius.circular(8)),
+          borderSide: BorderSide(color: Color(0xFF00F0FF)),
         ),
         filled: true,
         fillColor: const Color(0xFF02090B),
