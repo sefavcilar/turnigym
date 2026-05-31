@@ -7,6 +7,9 @@ import 'package:intl/intl.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'firebase_options.dart';
+import 'dart:async';
+import 'package:crypto/crypto.dart';
+import 'dart:convert';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -1408,7 +1411,7 @@ class _ChartLegend extends StatelessWidget {
 }
 
 // ================= KAREKOD DİYALOG POP-UP'I =================
-class QrDisplayDialog extends StatelessWidget {
+class QrDisplayDialog extends StatefulWidget {
   final String memberId;
   final String memberName;
   const QrDisplayDialog({
@@ -1416,6 +1419,43 @@ class QrDisplayDialog extends StatelessWidget {
     required this.memberId,
     required this.memberName,
   });
+
+  @override
+  State<QrDisplayDialog> createState() => _QrDisplayDialogState();
+}
+
+class _QrDisplayDialogState extends State<QrDisplayDialog> {
+  late Timer _timer;
+  String _currentQrData = "";
+
+  @override
+  void initState() {
+    super.initState();
+    _generateDynamicQr();
+    // Her 10 saniyede bir QR'ı yenile
+    _timer = Timer.periodic(const Duration(seconds: 10), (timer) {
+      if (mounted) _generateDynamicQr();
+    });
+  }
+
+  void _generateDynamicQr() {
+    // 10 saniyelik zaman dilimi (time slot)
+    int timeSlot = DateTime.now().millisecondsSinceEpoch ~/ 10000;
+
+    // memberID ve zaman dilimini birleştirip hash'le
+    var bytes = utf8.encode("${widget.memberId}:$timeSlot");
+    var digest = sha256.convert(bytes);
+
+    setState(() {
+      _currentQrData = digest.toString();
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1427,83 +1467,37 @@ class QrDisplayDialog extends StatelessWidget {
         decoration: BoxDecoration(
           color: const Color(0xFF04171A),
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: const Color(0xFF00F0FF).withOpacity(0.5),
-            width: 2,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: const Color(0xFF00F0FF).withOpacity(0.15),
-              blurRadius: 20,
-              spreadRadius: 2,
-            ),
-          ],
+          border: Border.all(color: const Color(0xFF00F0FF).withOpacity(0.5)),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             const Text(
-              'ÜYE GİRİŞ BİLETİ',
+              'GÜVENLİ GİRİŞ KODU',
               style: TextStyle(
                 color: Colors.white,
-                fontSize: 16,
                 fontWeight: FontWeight.bold,
-                letterSpacing: 1.5,
               ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              memberName.toUpperCase(),
-              style: const TextStyle(
-                color: Color(0xFFFF6B00),
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const Divider(color: Colors.white12, height: 24),
-            const SizedBox(height: 6),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: SizedBox(
-                width: 180,
-                height: 180,
-                child: QrImageView(
-                  data: memberId,
-                  version: QrVersions.auto,
-                  gapless: true,
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'ID: $memberId',
-              style: const TextStyle(
-                color: Color(0xFF627E82),
-                fontSize: 10,
-                fontFamily: 'monospace',
-              ),
-              textAlign: TextAlign.center,
             ),
             const SizedBox(height: 20),
+            Container(
+              padding: const EdgeInsets.all(8),
+              color: Colors.white,
+              child: QrImageView(
+                data: _currentQrData,
+                version: QrVersions.auto,
+                size: 200,
+              ),
+            ),
+            const SizedBox(height: 15),
+            const Text(
+              "10 saniyede bir yenilenir",
+              style: TextStyle(color: Colors.grey, fontSize: 10),
+            ),
+            const SizedBox(height: 10),
             ElevatedButton(
               onPressed: () => Navigator.pop(context),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF00F0FF),
-                foregroundColor: Colors.black,
-                minimumSize: const Size(double.infinity, 40),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
-              child: const Text(
-                'KAPAT',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
+              child: const Text('KAPAT'),
             ),
           ],
         ),
