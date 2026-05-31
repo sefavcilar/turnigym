@@ -10,6 +10,8 @@ import 'firebase_options.dart';
 import 'dart:async';
 import 'package:crypto/crypto.dart';
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
+import 'login_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -28,7 +30,16 @@ class TurniGymApp extends StatelessWidget {
         cardColor: const Color(0xFF04171A),
         primaryColor: const Color(0xFF00F0FF),
       ),
-      home: const AuthChecker(),
+      home: kDebugMode
+          ? const MainLayout() // Geliştirme modunda giriş ekranını bypass et
+          : StreamBuilder<User?>(
+              // Canlı ortamda (release) girişi aktif tut
+              stream: FirebaseAuth.instance.authStateChanges(),
+              builder: (context, snapshot) {
+                if (snapshot.hasData) return const MainLayout();
+                return const LoginScreen();
+              },
+            ),
     );
   }
 }
@@ -70,6 +81,13 @@ class _LoginViewState extends State<LoginView> {
   void initState() {
     super.initState();
     _loadRememberedEmail();
+  }
+
+  @override
+  void dispose() {
+    _email.dispose();
+    _pass.dispose();
+    super.dispose();
   }
 
   Future<void> _loadRememberedEmail() async {
@@ -220,6 +238,17 @@ class MainLayout extends StatefulWidget {
 }
 
 class _MainLayoutState extends State<MainLayout> {
+  // --- EKSİK TANIMLAMALAR ---
+  final TextEditingController _logoUrlController = TextEditingController();
+  bool _showInsideCard = true; // Varsayılan olarak göster
+  String _listRowCount =
+      '10'; // Varsayılan satır sayısı (Dropdown String beklediği için String tanımlandı)
+  String _analyticsViewMode = 'GÜNLÜK';
+  final TextEditingController _salonCapacityController =
+      TextEditingController();
+  int _salonCapacity = 50; // Varsayılan değer
+  // ----------------------------------
+
   @override
   void initState() {
     super.initState();
@@ -238,27 +267,43 @@ class _MainLayoutState extends State<MainLayout> {
             final data = doc.data();
             final timestamp = data['timestamp'] ?? 0;
             if (DateTime.now().millisecondsSinceEpoch - timestamp < 5000) {
-              _showEntryNotification(data['memberName'] ?? 'Bilinmeyen Üye');
+              final memberName = data['memberName'] ?? 'Bilinmeyen Üye';
+              final type = data['type'] == 'ÇIKIŞ' ? 'çıkış' : 'giriş';
+              _showEntryNotification('$memberName $type yaptı');
             }
           }
         });
   }
 
-  void _showEntryNotification(String memberName) {
+  void _showEntryNotification(String statusMessage) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          '✅ $memberName içeriye giriş yaptı!',
-          style: const TextStyle(fontWeight: FontWeight.bold),
+          statusMessage, // "Sefa Avcılar giriş yaptı" veya "çıkış yaptı"
+          style: const TextStyle(
+            color: Colors.white, // Yazıyı beyaz yap
+            fontWeight: FontWeight.bold,
+          ),
         ),
-        backgroundColor: const Color(0xFF00FF66),
+        backgroundColor: statusMessage.contains('giriş')
+            ? Colors
+                  .green
+                  .shade700 // Girişse yeşil
+            : Colors.red.shade700, // Çıkışsa kırmızı
+        duration: const Duration(
+          seconds: 2,
+        ), // Döngüden kurtulmak için süreyi kısıtla
       ),
     );
   }
 
   int _selectedIndex = 0;
+  bool _isProcessing = false;
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = "";
+  final TextEditingController _packageNameController = TextEditingController();
+  final TextEditingController _packagePriceController = TextEditingController();
+  final TextEditingController _packageIconController = TextEditingController();
 
   final List<String> _menuTitles = [
     'Kontrol Merkezi',
@@ -285,6 +330,11 @@ class _MainLayoutState extends State<MainLayout> {
   @override
   void dispose() {
     _searchController.dispose();
+    _packageNameController.dispose();
+    _packagePriceController.dispose();
+    _packageIconController.dispose();
+    _logoUrlController.dispose();
+    _salonCapacityController.dispose();
     super.dispose();
   }
 
@@ -390,28 +440,67 @@ class _MainLayoutState extends State<MainLayout> {
                       Row(
                         children: [
                           IconButton(
-                            icon: const Icon(
-                              Icons.notifications_none,
-                              color: Color(0xFFFF3B30),
+                            icon: const Stack(
+                              children: [
+                                Icon(
+                                  Icons.notifications_outlined,
+                                  color: Colors.white,
+                                ),
+                                Positioned(
+                                  right: 0,
+                                  child: Icon(
+                                    Icons.brightness_1,
+                                    color: Colors.red,
+                                    size: 8,
+                                  ), // Bildirim noktası
+                                ),
+                              ],
                             ),
-                            onPressed: () {},
+                            onPressed: () {
+                              showModalBottomSheet(
+                                context: context,
+                                backgroundColor: const Color(0xFF04171A),
+                                builder: (context) =>
+                                    _buildRecentNotifications(),
+                              );
+                            },
                           ),
                           const SizedBox(width: 12),
-                          Container(
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              border: Border.all(
-                                color: const Color(0xFF00F0FF),
-                                width: 1.5,
-                              ),
+                          PopupMenuButton<String>(
+                            color: const Color(0xFF0B2D33),
+                            offset: const Offset(0, 50),
+                            icon: const CircleAvatar(
+                              backgroundColor: Color(0xFF00F0FF),
+                              child: Icon(Icons.person, color: Colors.black),
                             ),
-                            child: const CircleAvatar(
-                              backgroundColor: Color(0xFF04171A),
-                              child: Icon(
-                                Icons.person_outline,
-                                color: Color(0xFF00F0FF),
+                            onSelected: (value) async {
+                              if (value == 'logout') {
+                                await FirebaseAuth.instance.signOut();
+                              }
+                            },
+                            itemBuilder: (context) => [
+                              const PopupMenuItem(
+                                value: 'profile',
+                                child: Text(
+                                  "Profilim",
+                                  style: TextStyle(color: Colors.white),
+                                ),
                               ),
-                            ),
+                              const PopupMenuItem(
+                                value: 'settings',
+                                child: Text(
+                                  "Ayarlar",
+                                  style: TextStyle(color: Colors.white),
+                                ),
+                              ),
+                              const PopupMenuItem(
+                                value: 'logout',
+                                child: Text(
+                                  "Çıkış Yap",
+                                  style: TextStyle(color: Colors.redAccent),
+                                ),
+                              ),
+                            ],
                           ),
                         ],
                       ),
@@ -424,8 +513,14 @@ class _MainLayoutState extends State<MainLayout> {
                         ? _buildDashboardView()
                         : _selectedIndex == 1
                         ? _buildMemberManagementView()
+                        : _selectedIndex == 2
+                        ? _buildPackageStoreView() // Market görünümünü buraya bağladık
                         : _selectedIndex == 3
                         ? _buildSalesReportsView() // Raporları buraya bağladık!
+                        : _selectedIndex == 4
+                        ? _buildPassAnalyticsView() // Geçiş Analitiği sayfası
+                        : _selectedIndex == 7
+                        ? _buildSystemSettingsView() // Sistem Ayarları (Paket Tanımlama)
                         : _buildMemberManagementView(),
                   ),
                 ],
@@ -446,65 +541,82 @@ class _MainLayoutState extends State<MainLayout> {
       children: [
         Row(
           children: [
-            StreamBuilder<QuerySnapshot>(
-              stream: FirebaseFirestore.instance
-                  .collection('members')
-                  .snapshots(),
-              builder: (context, snapshot) {
-                String totalMembers = snapshot.hasData
-                    ? '${snapshot.data!.docs.length}'
-                    : '...';
-                return _buildStatCard(
-                  'TOPLAM AKTİF ÜYE',
-                  totalMembers,
-                  Icons.group_add,
-                  const Color(0xFF00FF66),
-                );
-              },
+            Expanded(
+              flex: 4,
+              child: Row(
+                children: [
+                  Expanded(
+                    child: StreamBuilder<QuerySnapshot>(
+                      stream: FirebaseFirestore.instance
+                          .collection('members')
+                          .snapshots(),
+                      builder: (context, snapshot) {
+                        String totalMembers = snapshot.hasData
+                            ? '${snapshot.data!.docs.length}'
+                            : '...';
+                        return _buildStatCard(
+                          'TOPLAM AKTİF ÜYE',
+                          totalMembers,
+                          Icons.people,
+                          const Color(0xFF00FF66),
+                        );
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: StreamBuilder<QuerySnapshot>(
+                      stream: FirebaseFirestore.instance
+                          .collection('pass_logs')
+                          .where('date', isEqualTo: todayStr)
+                          .snapshots(),
+                      builder: (context, snapshot) {
+                        String todayPass = snapshot.hasData
+                            ? '${snapshot.data!.docs.length}'
+                            : '...';
+                        return _buildStatCard(
+                          'BUGÜNKÜ GEÇİŞ',
+                          todayPass,
+                          Icons.swap_horiz,
+                          const Color(0xFF00F0FF),
+                        );
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: StreamBuilder<QuerySnapshot>(
+                      stream: FirebaseFirestore.instance
+                          .collection('pass_logs')
+                          .where('date', isEqualTo: todayStr)
+                          .snapshots(),
+                      builder: (context, snapshot) {
+                        String todayCredit = snapshot.hasData
+                            ? '${snapshot.data!.docs.length}'
+                            : '...';
+                        return _buildStatCard(
+                          'HARCANAN KREDİ',
+                          todayCredit,
+                          Icons.credit_score,
+                          const Color(0xFFFF6B00),
+                        );
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _buildStatCard(
+                      'DONANIM SAĞLIĞI',
+                      '%100',
+                      Icons.speed,
+                      const Color(0xFFFF00F0),
+                    ),
+                  ),
+                ],
+              ),
             ),
-            const SizedBox(width: 16),
-            StreamBuilder<QuerySnapshot>(
-              stream: FirebaseFirestore.instance
-                  .collection('pass_logs')
-                  .where('date', isEqualTo: todayStr)
-                  .snapshots(),
-              builder: (context, snapshot) {
-                String todayPass = snapshot.hasData
-                    ? '${snapshot.data!.docs.length}'
-                    : '...';
-                return _buildStatCard(
-                  'BUGÜNKÜ GEÇİŞ',
-                  todayPass,
-                  Icons.swap_vert,
-                  const Color(0xFF00F0FF),
-                );
-              },
-            ),
-            const SizedBox(width: 16),
-            StreamBuilder<QuerySnapshot>(
-              stream: FirebaseFirestore.instance
-                  .collection('pass_logs')
-                  .where('date', isEqualTo: todayStr)
-                  .snapshots(),
-              builder: (context, snapshot) {
-                String todayCredit = snapshot.hasData
-                    ? '${snapshot.data!.docs.length}'
-                    : '...';
-                return _buildStatCard(
-                  'HARCANAN KREDİ',
-                  todayCredit,
-                  Icons.bolt,
-                  const Color(0xFFFF6B00),
-                );
-              },
-            ),
-            const SizedBox(width: 16),
-            _buildStatCard(
-              'DONANIM SAĞLIĞI',
-              '%100',
-              Icons.router,
-              const Color(0xFFFF00F0),
-            ),
+            const SizedBox(width: 10),
+            Expanded(flex: 1, child: _buildInsideCard()),
           ],
         ),
         const SizedBox(height: 32),
@@ -562,7 +674,14 @@ class _MainLayoutState extends State<MainLayout> {
                           ),
                           child: ElevatedButton.icon(
                             onPressed: () async {
+                              if (_isProcessing)
+                                return; // İşlem bitmeden tekrar basılmasını engelle
+                              setState(() => _isProcessing = true);
+
                               try {
+                                // 1. Kapıyı aç (Donanım komutu buraya eklenebilir)
+                                // await sendHardwareCommand("OPEN_DOOR");
+
                                 final memberSnapshot = await FirebaseFirestore
                                     .instance
                                     .collection('members')
@@ -573,19 +692,29 @@ class _MainLayoutState extends State<MainLayout> {
                                 if (memberSnapshot.docs.isNotEmpty) {
                                   final lastMemberDoc =
                                       memberSnapshot.docs.first;
+                                  final data =
+                                      lastMemberDoc.data()
+                                          as Map<String, dynamic>;
                                   final String memberName =
-                                      lastMemberDoc['name'];
-                                  final int currentCredit =
-                                      lastMemberDoc['credit'];
+                                      data['name'] ?? 'Bilinmeyen Üye';
+                                  final int currentCredit = data['credit'] ?? 0;
                                   final String docId = lastMemberDoc.id;
+                                  // Üyenin mevcut durumunu al
+                                  final bool isInside =
+                                      data['isInside'] ?? false;
 
                                   if (currentCredit > 0) {
+                                    // 2. Canlı trafiği güncelle (Durumu tersine çevir) ve krediyi düş
                                     await FirebaseFirestore.instance
                                         .collection('members')
                                         .doc(docId)
-                                        .update({'credit': currentCredit - 1});
+                                        .update({
+                                          'credit': currentCredit - 1,
+                                          'isInside': !isInside,
+                                        });
 
                                     final now = DateTime.now();
+                                    // 3. Geçiş günlüğüne yaz (Dashboard'daki sayılar artar)
                                     await FirebaseFirestore.instance
                                         .collection('pass_logs')
                                         .add({
@@ -598,6 +727,7 @@ class _MainLayoutState extends State<MainLayout> {
                                             'HH:mm:ss',
                                           ).format(now),
                                           'status': 'Geçiş İzni',
+                                          'type': !isInside ? 'GİRİŞ' : 'ÇIKIŞ',
                                           'timestamp':
                                               now.millisecondsSinceEpoch,
                                         });
@@ -643,6 +773,10 @@ class _MainLayoutState extends State<MainLayout> {
                                 }
                               } catch (e) {
                                 print('Hata: $e');
+                              } finally {
+                                if (mounted) {
+                                  setState(() => _isProcessing = false);
+                                }
                               }
                             },
                             icon: const Icon(
@@ -786,57 +920,108 @@ class _MainLayoutState extends State<MainLayout> {
     IconData icon,
     Color neonColor,
   ) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: const Color(0xFF04171A),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: neonColor.withOpacity(0.2)),
-          boxShadow: [
-            BoxShadow(
-              color: neonColor.withOpacity(0.03),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    color: Color(0xFF627E82),
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 0.5,
-                  ),
+    return Container(
+      constraints: const BoxConstraints(minWidth: 0), // Taşıyıcıyı esnek yap
+      margin: EdgeInsets.zero, // Margin'i sıfırla, Expanded zaten hallediyor
+      padding: const EdgeInsets.all(12), // Padding'i hafif daralt
+      decoration: BoxDecoration(
+        color: const Color(0xFF04171A),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: neonColor.withOpacity(0.2)),
+        boxShadow: [
+          BoxShadow(
+            color: neonColor.withOpacity(0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  color: Color(0xFF627E82),
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 0.5,
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  value,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: neonColor.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(12),
               ),
-              child: Icon(icon, color: neonColor, size: 22),
+              const SizedBox(height: 8),
+              Text(
+                value,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: neonColor.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
             ),
-          ],
-        ),
+            child: Icon(icon, color: neonColor, size: 22),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInsideCard() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: const Color(0xFF04171A),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFF00FF66).withOpacity(0.3)),
+      ),
+      child: StreamBuilder<QuerySnapshot>(
+        // 'isInside' alanı true olan üyeleri filtreliyoruz
+        stream: FirebaseFirestore.instance
+            .collection('members')
+            .where('isInside', isEqualTo: true)
+            .snapshots(),
+        builder: (context, snapshot) {
+          if (!snapshot.hasData) {
+            return const CircularProgressIndicator(color: Color(0xFF00FF66));
+          }
+          final insideCount = snapshot.data!.docs.length;
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                "ANLIK İÇERİDEKİLER",
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                ),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                "$insideCount Üye",
+                style: const TextStyle(
+                  fontSize: 32,
+                  color: Color(0xFF00FF66),
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 5),
+              const Text(
+                "Salon trafiği aktif",
+                style: TextStyle(color: Colors.white54, fontSize: 10),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -1565,6 +1750,188 @@ class _MainLayoutState extends State<MainLayout> {
     }
   }
 
+  Widget _buildRecentNotifications() {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: const BoxDecoration(
+        color: Color(0xFF04171A),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            "Son Sistem Bildirimleri",
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 16),
+          StreamBuilder<QuerySnapshot>(
+            stream: FirebaseFirestore.instance
+                .collection('pass_logs')
+                .orderBy('timestamp', descending: true)
+                .limit(5)
+                .snapshots(),
+            builder: (context, snapshot) {
+              if (!snapshot.hasData)
+                return const Center(
+                  child: CircularProgressIndicator(color: Color(0xFF00F0FF)),
+                );
+              final docs = snapshot.data!.docs;
+              if (docs.isEmpty)
+                return const Text(
+                  "Yeni bildirim yok.",
+                  style: TextStyle(color: Colors.grey),
+                );
+
+              return ListView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: docs.length,
+                itemBuilder: (context, index) {
+                  final data = docs[index].data() as Map<String, dynamic>;
+                  final bool isSuccess = data['status'] == 'Geçiş İzni';
+                  return ListTile(
+                    leading: Icon(
+                      isSuccess
+                          ? Icons.check_circle_outline
+                          : Icons.error_outline,
+                      color: isSuccess
+                          ? const Color(0xFF00FF66)
+                          : Colors.redAccent,
+                    ),
+                    title: Text(
+                      data['memberName'] ?? 'Bilinmeyen Üye',
+                      style: const TextStyle(color: Colors.white),
+                    ),
+                    subtitle: Text(
+                      "${data['status']} - ${data['date']} ${data['time']}",
+                      style: const TextStyle(color: Colors.white54),
+                    ),
+                  );
+                },
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPackageStoreView() {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('packages')
+          .orderBy('price')
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) {
+          return const Center(
+            child: CircularProgressIndicator(color: Color(0xFF00F0FF)),
+          );
+        }
+
+        final docs = snapshot.data!.docs;
+
+        return GridView.builder(
+          padding: const EdgeInsets.all(24),
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 3,
+            mainAxisSpacing: 20,
+            crossAxisSpacing: 20,
+          ),
+          itemCount: docs.length,
+          itemBuilder: (context, index) {
+            final data = docs[index].data() as Map<String, dynamic>;
+            final iconStr = (data['icon'] ?? '').toString().toLowerCase();
+
+            // İkonları metinden yakalamak için basit bir eşleştirme
+            IconData packageIcon = Icons.local_offer_outlined;
+            if (iconStr.contains('fitness')) packageIcon = Icons.fitness_center;
+            if (iconStr.contains('infinite') || iconStr.contains('inclusive'))
+              packageIcon = Icons.all_inclusive;
+            if (iconStr.contains('premium'))
+              packageIcon = Icons.workspace_premium;
+
+            // Renkleri sırayla atamak için
+            final colors = [
+              Colors.cyan,
+              Colors.greenAccent,
+              Colors.amber,
+              Colors.purpleAccent,
+              Colors.orange,
+            ];
+            final color = colors[index % colors.length];
+
+            return _buildPackageCard(
+              data['name'] ?? 'Paket',
+              "${data['price']} TL",
+              packageIcon,
+              color,
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildPackageCard(
+    String title,
+    String price,
+    IconData icon,
+    Color color,
+  ) {
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xFF04171A),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: color.withOpacity(0.5)),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon, size: 50, color: color),
+          const SizedBox(height: 16),
+          Text(
+            title,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            price,
+            style: TextStyle(
+              color: color,
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 20),
+          ElevatedButton(
+            onPressed: () {
+              // Üye seçip satış yapma mantığı buraya eklenecek
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: color,
+              foregroundColor: Colors.black,
+            ),
+            child: const Text(
+              "Hızlı Satış Yap",
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildSalesReportsView() {
     return Container(
       padding: const EdgeInsets.all(24),
@@ -1641,6 +2008,849 @@ class _MainLayoutState extends State<MainLayout> {
         ],
       ),
     );
+  }
+
+  // ================= 📊 5. GÖRÜNÜM: GEÇİŞ ANALİTİĞİ =================
+  Widget _buildPassAnalyticsView() {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: const Color(0xFF04171A),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                "GEÇİŞ ANALİTİĞİ",
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              SegmentedButton<String>(
+                style: SegmentedButton.styleFrom(
+                  backgroundColor: const Color(0xFF0B2D33),
+                  foregroundColor: Colors.white,
+                  selectedForegroundColor: Colors.black,
+                  selectedBackgroundColor: const Color(0xFF00F0FF),
+                ),
+                segments: const [
+                  ButtonSegment(value: 'GÜNLÜK', label: Text('Bugün')),
+                  ButtonSegment(value: 'AYLIK', label: Text('Bu Ay')),
+                ],
+                selected: {_analyticsViewMode},
+                onSelectionChanged: (newSelection) {
+                  setState(() {
+                    _analyticsViewMode = newSelection.first;
+                  });
+                },
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
+          // Özet Kartları (Toplam Giriş, Ortalama Süre, Yoğun Saat)
+          Row(
+            children: [
+              Expanded(
+                child: _buildSummaryCard(
+                  "Toplam Giriş",
+                  "124",
+                  Colors.greenAccent,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: _buildSummaryCard(
+                  "Ort. Salon Süresi",
+                  "75 dk",
+                  Colors.cyanAccent,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: _buildSummaryCard(
+                  "En Yoğun Saat",
+                  "19:00",
+                  Colors.orangeAccent,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
+          // Detaylı Liste veya Grafik
+          Expanded(
+            child: StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection('pass_logs')
+                  .snapshots(),
+              builder: (context, snapshot) {
+                if (!snapshot.hasData) {
+                  return const Center(
+                    child: CircularProgressIndicator(color: Color(0xFF00F0FF)),
+                  );
+                }
+                final logs = snapshot.data!.docs;
+                return Column(
+                  children: [
+                    Expanded(
+                      child: _analyticsViewMode == 'GÜNLÜK'
+                          ? _buildDailyChart(logs)
+                          : _buildMonthlyChart(logs),
+                    ),
+                    _buildSmartAnalysis(logs, _salonCapacity),
+                  ],
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSummaryCard(String title, String value, Color color) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0B2D33),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withOpacity(0.3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(color: Colors.white70, fontSize: 12),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            value,
+            style: TextStyle(
+              color: color,
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDailyChart(List<QueryDocumentSnapshot> logs) {
+    Map<int, int> hourlyData = {};
+    DateTime now = DateTime.now();
+
+    // Sadece BUGÜNÜN verilerini filtrele ve saatlere böl
+    for (var doc in logs) {
+      final data = doc.data() as Map<String, dynamic>;
+      DateTime date = DateTime.fromMillisecondsSinceEpoch(
+        data['timestamp'] ?? 0,
+      );
+      if (date.year == now.year &&
+          date.month == now.month &&
+          date.day == now.day) {
+        int hour = date.hour;
+        hourlyData[hour] = (hourlyData[hour] ?? 0) + 1;
+      }
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0B2D33),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFF00F0FF).withOpacity(0.2)),
+      ),
+      child: BarChart(
+        BarChartData(
+          alignment: BarChartAlignment.spaceAround,
+          maxY:
+              (hourlyData.values.isEmpty
+                  ? 0
+                  : hourlyData.values
+                        .reduce((a, b) => a > b ? a : b)
+                        .toDouble()) +
+              5,
+          barTouchData: BarTouchData(enabled: false),
+          titlesData: FlTitlesData(
+            show: true,
+            bottomTitles: AxisTitles(
+              sideTitles: SideTitles(
+                showTitles: true,
+                getTitlesWidget: (value, meta) {
+                  if (value % 4 == 0)
+                    return Text(
+                      '${value.toInt()}:00',
+                      style: const TextStyle(
+                        color: Colors.white54,
+                        fontSize: 10,
+                      ),
+                    );
+                  return const Text('');
+                },
+              ),
+            ),
+            leftTitles: const AxisTitles(
+              sideTitles: SideTitles(showTitles: false),
+            ),
+            topTitles: const AxisTitles(
+              sideTitles: SideTitles(showTitles: false),
+            ),
+            rightTitles: const AxisTitles(
+              sideTitles: SideTitles(showTitles: false),
+            ),
+          ),
+          gridData: const FlGridData(show: false),
+          borderData: FlBorderData(show: false),
+          barGroups: List.generate(
+            24,
+            (i) => BarChartGroupData(
+              x: i,
+              barRods: [
+                BarChartRodData(
+                  toY: (hourlyData[i] ?? 0).toDouble(),
+                  color: const Color(0xFF00F0FF),
+                  width: 8,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMonthlyChart(List<QueryDocumentSnapshot> logs) {
+    Map<int, int> dailyData = {};
+    DateTime now = DateTime.now();
+    int daysInMonth = DateTime(now.year, now.month + 1, 0).day;
+
+    // Sadece BU AYIN verilerini filtrele ve günlere böl
+    for (var doc in logs) {
+      final data = doc.data() as Map<String, dynamic>;
+      DateTime date = DateTime.fromMillisecondsSinceEpoch(
+        data['timestamp'] ?? 0,
+      );
+      if (date.year == now.year && date.month == now.month) {
+        int day = date.day;
+        dailyData[day] = (dailyData[day] ?? 0) + 1;
+      }
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0B2D33),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFFF6B00).withOpacity(0.2)),
+      ),
+      child: BarChart(
+        BarChartData(
+          alignment: BarChartAlignment.spaceAround,
+          maxY:
+              (dailyData.values.isEmpty
+                  ? 0
+                  : dailyData.values
+                        .reduce((a, b) => a > b ? a : b)
+                        .toDouble()) +
+              5,
+          barTouchData: BarTouchData(enabled: false),
+          titlesData: FlTitlesData(
+            show: true,
+            bottomTitles: AxisTitles(
+              sideTitles: SideTitles(
+                showTitles: true,
+                getTitlesWidget: (value, meta) {
+                  // Sadece 1. gün ve 5'in katları olan günleri yazdır
+                  if (value % 5 == 0 || value == 1)
+                    return Text(
+                      '${value.toInt()}',
+                      style: const TextStyle(
+                        color: Colors.white54,
+                        fontSize: 10,
+                      ),
+                    );
+                  return const Text('');
+                },
+              ),
+            ),
+            leftTitles: const AxisTitles(
+              sideTitles: SideTitles(showTitles: false),
+            ),
+            topTitles: const AxisTitles(
+              sideTitles: SideTitles(showTitles: false),
+            ),
+            rightTitles: const AxisTitles(
+              sideTitles: SideTitles(showTitles: false),
+            ),
+          ),
+          gridData: const FlGridData(show: false),
+          borderData: FlBorderData(show: false),
+          barGroups: List.generate(daysInMonth, (i) {
+            int day = i + 1;
+            return BarChartGroupData(
+              x: day,
+              barRods: [
+                BarChartRodData(
+                  toY: (dailyData[day] ?? 0).toDouble(),
+                  color: const Color(0xFFFF6B00),
+                  width: 6,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ],
+            );
+          }),
+        ),
+      ),
+    );
+  }
+
+  // ================= 🤖 AKILLI ÖZET ANALİZİ =================
+  Widget _buildSmartAnalysis(List<QueryDocumentSnapshot> logs, int capacity) {
+    DateTime now = DateTime.now();
+    int currentUsage = 0;
+
+    // Şu anki (bu saatteki) girişleri say
+    for (var doc in logs) {
+      final data = doc.data() as Map<String, dynamic>;
+      DateTime date = DateTime.fromMillisecondsSinceEpoch(
+        data['timestamp'] ?? 0,
+      );
+      if (date.year == now.year &&
+          date.month == now.month &&
+          date.day == now.day &&
+          date.hour == now.hour) {
+        currentUsage++;
+      }
+    }
+
+    double occupancyRate = capacity > 0 ? (currentUsage / capacity) * 100 : 0;
+    if (occupancyRate > 100) occupancyRate = 100;
+
+    Color statusColor = occupancyRate > 80 ? Colors.redAccent : Colors.cyan;
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      margin: const EdgeInsets.only(top: 20),
+      decoration: BoxDecoration(
+        color: statusColor.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: statusColor.withOpacity(0.3)),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.auto_awesome, color: statusColor),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              "Analiz: Salon şu an %${occupancyRate.toInt()} kapasite ile çalışıyor. " +
+                  (occupancyRate > 80
+                      ? "Uyarı: Salon oldukça kalabalık!"
+                      : "Salon kullanımı normal seviyede."),
+              style: TextStyle(color: statusColor, fontSize: 16),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  int _findBusiestHour(List<QueryDocumentSnapshot> logs) {
+    Map<int, int> hourlyData = {};
+    DateTime now = DateTime.now();
+
+    // Bugünün girişlerini saatlere göre grupla
+    for (var doc in logs) {
+      final data = doc.data() as Map<String, dynamic>;
+      DateTime date = DateTime.fromMillisecondsSinceEpoch(
+        data['timestamp'] ?? 0,
+      );
+      if (date.year == now.year &&
+          date.month == now.month &&
+          date.day == now.day) {
+        int hour = date.hour;
+        hourlyData[hour] = (hourlyData[hour] ?? 0) + 1;
+      }
+    }
+
+    if (hourlyData.isEmpty) return 0;
+    // En yüksek giriş yapılan saati döndür
+    return hourlyData.entries.reduce((a, b) => a.value > b.value ? a : b).key;
+  }
+
+  double _calculateOccupancy(List<QueryDocumentSnapshot> logs) {
+    int busiestHour = _findBusiestHour(logs);
+    int countInBusiestHour = 0;
+    DateTime now = DateTime.now();
+
+    // Sadece en yoğun saatteki giriş sayısını hesapla
+    for (var doc in logs) {
+      final data = doc.data() as Map<String, dynamic>;
+      DateTime date = DateTime.fromMillisecondsSinceEpoch(
+        data['timestamp'] ?? 0,
+      );
+      if (date.year == now.year &&
+          date.month == now.month &&
+          date.day == now.day &&
+          date.hour == busiestHour) {
+        countInBusiestHour++;
+      }
+    }
+
+    int capacity = 50; // Salonun varsayılan maksimum kişi kapasitesi
+    double occupancy = (countInBusiestHour / capacity) * 100;
+    return occupancy > 100 ? 100 : occupancy;
+  }
+
+  Widget _buildSystemSettingsView() {
+    return DefaultTabController(
+      length: 2,
+      child: Container(
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: const Color(0xFF04171A),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              "SİSTEM AYARLARI",
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 16),
+            const TabBar(
+              indicatorColor: Color(0xFF00F0FF),
+              labelColor: Color(0xFF00F0FF),
+              unselectedLabelColor: Color(0xFF627E82),
+              tabs: [
+                Tab(text: "Paket Yönetimi", icon: Icon(Icons.shopping_bag)),
+                Tab(text: "Genel Ayarlar", icon: Icon(Icons.settings)),
+              ],
+            ),
+            const SizedBox(height: 24),
+            Expanded(
+              child: TabBarView(
+                children: [
+                  _buildPackageManagementSection(),
+                  _buildGeneralSettingsSection(),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildGeneralSettingsSection() {
+    return SingleChildScrollView(
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: const Color(0xFF0B2D33),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: const Color(0xFF00F0FF).withOpacity(0.3)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              "Görünüm Ayarları",
+              style: TextStyle(
+                color: Color(0xFF00F0FF),
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _logoUrlController,
+                    style: const TextStyle(color: Colors.white),
+                    decoration: const InputDecoration(
+                      labelText: 'Logo URL (Web linki yapıştırın)',
+                      labelStyle: TextStyle(color: Color(0xFF627E82)),
+                      border: OutlineInputBorder(),
+                      enabledBorder: OutlineInputBorder(
+                        borderSide: BorderSide(color: Color(0xFF00F0FF)),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                ElevatedButton.icon(
+                  onPressed: () async {
+                    await FirebaseFirestore.instance
+                        .collection('system_settings')
+                        .doc('general')
+                        .set({
+                          'logoUrl': _logoUrlController.text.trim(),
+                        }, SetOptions(merge: true));
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            '✅ Logo başarıyla güncellendi!',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                          backgroundColor: Color(0xFF00FF66),
+                        ),
+                      );
+                    }
+                  },
+                  icon: const Icon(Icons.save),
+                  label: const Text("KAYDET"),
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 24,
+                      vertical: 20,
+                    ),
+                    backgroundColor: const Color(0xFF00FF66),
+                    foregroundColor: Colors.black,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 24),
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _salonCapacityController,
+                    keyboardType: TextInputType.number,
+                    style: const TextStyle(color: Colors.white),
+                    decoration: const InputDecoration(
+                      labelText: 'Salon Kapasitesi (Maksimum Kişi)',
+                      labelStyle: TextStyle(color: Color(0xFF627E82)),
+                      border: OutlineInputBorder(),
+                      enabledBorder: OutlineInputBorder(
+                        borderSide: BorderSide(color: Color(0xFF00F0FF)),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                ElevatedButton.icon(
+                  onPressed: () async {
+                    final capacity =
+                        int.tryParse(_salonCapacityController.text.trim()) ??
+                        50;
+                    await FirebaseFirestore.instance
+                        .collection('system_settings')
+                        .doc('general')
+                        .set({
+                          'salon_capacity': capacity,
+                        }, SetOptions(merge: true));
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            '✅ Kapasite başarıyla güncellendi!',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                          backgroundColor: Color(0xFF00FF66),
+                        ),
+                      );
+                    }
+                  },
+                  icon: const Icon(Icons.save),
+                  label: const Text("KAYDET"),
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 24,
+                      vertical: 20,
+                    ),
+                    backgroundColor: const Color(0xFF00FF66),
+                    foregroundColor: Colors.black,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 24),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text(
+                "Dashboard'da İçeridekiler Kartını Göster",
+                style: TextStyle(color: Colors.white),
+              ),
+              subtitle: const Text(
+                "Ana ekranda anlık içerideki üyeleri gösteren kartı açıp kapatır.",
+                style: TextStyle(color: Color(0xFF627E82), fontSize: 12),
+              ),
+              activeColor: const Color(0xFF00FF66),
+              value: _showInsideCard,
+              onChanged: (val) async {
+                await FirebaseFirestore.instance
+                    .collection('system_settings')
+                    .doc('general')
+                    .set({'showInsideCard': val}, SetOptions(merge: true));
+              },
+            ),
+            const Divider(color: Color(0xFF13363B)),
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text(
+                "Liste Satır Sayısı",
+                style: TextStyle(color: Colors.white),
+              ),
+              subtitle: const Text(
+                "Tablolarda gösterilecek varsayılan satır sayısı.",
+                style: TextStyle(color: Color(0xFF627E82), fontSize: 12),
+              ),
+              trailing: DropdownButton<String>(
+                value: _listRowCount,
+                dropdownColor: const Color(0xFF0B2D33),
+                style: const TextStyle(color: Colors.white),
+                items: ['10', '25', '50'].map((String value) {
+                  return DropdownMenuItem<String>(
+                    value: value,
+                    child: Text(value),
+                  );
+                }).toList(),
+                onChanged: (val) async {
+                  if (val != null) {
+                    await FirebaseFirestore.instance
+                        .collection('system_settings')
+                        .doc('general')
+                        .set({
+                          'listRowCount': int.tryParse(val) ?? 25,
+                        }, SetOptions(merge: true));
+                  }
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPackageManagementSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: const Color(0xFF0B2D33),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: const Color(0xFF00F0FF).withOpacity(0.3)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                "Yeni Paket Tanımla",
+                style: TextStyle(
+                  color: Color(0xFF00F0FF),
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _packageNameController,
+                      style: const TextStyle(color: Colors.white),
+                      decoration: const InputDecoration(
+                        labelText: 'Paket Adı',
+                        labelStyle: TextStyle(color: Color(0xFF627E82)),
+                        border: OutlineInputBorder(),
+                        enabledBorder: OutlineInputBorder(
+                          borderSide: BorderSide(color: Color(0xFF00F0FF)),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: TextField(
+                      controller: _packagePriceController,
+                      style: const TextStyle(color: Colors.white),
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(
+                        labelText: 'Fiyat (TL)',
+                        labelStyle: TextStyle(color: Color(0xFF627E82)),
+                        border: OutlineInputBorder(),
+                        enabledBorder: OutlineInputBorder(
+                          borderSide: BorderSide(color: Color(0xFF00F0FF)),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: TextField(
+                      controller: _packageIconController,
+                      style: const TextStyle(color: Colors.white),
+                      decoration: const InputDecoration(
+                        labelText: 'İkon (örn: fitness_center)',
+                        labelStyle: TextStyle(color: Color(0xFF627E82)),
+                        border: OutlineInputBorder(),
+                        enabledBorder: OutlineInputBorder(
+                          borderSide: BorderSide(color: Color(0xFF00F0FF)),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  ElevatedButton.icon(
+                    onPressed: () async {
+                      final name = _packageNameController.text.trim();
+                      final priceStr = _packagePriceController.text.trim();
+                      final iconStr = _packageIconController.text.trim();
+
+                      if (name.isNotEmpty && priceStr.isNotEmpty) {
+                        final price = double.tryParse(priceStr) ?? 0.0;
+                        await _addPackage(name, price, iconStr);
+
+                        _packageNameController.clear();
+                        _packagePriceController.clear();
+                        _packageIconController.clear();
+
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                '✅ Paket başarıyla kaydedildi!',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              backgroundColor: Color(0xFF00FF66),
+                            ),
+                          );
+                        }
+                      }
+                    },
+                    icon: const Icon(Icons.save),
+                    label: const Text("KAYDET"),
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 24,
+                        vertical: 20,
+                      ),
+                      backgroundColor: const Color(0xFF00FF66),
+                      foregroundColor: Colors.black,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 32),
+        const Text(
+          "Kayıtlı Paketler",
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 16),
+        Expanded(
+          child: StreamBuilder<QuerySnapshot>(
+            stream: FirebaseFirestore.instance
+                .collection('packages')
+                .orderBy('price')
+                .snapshots(),
+            builder: (context, snapshot) {
+              if (!snapshot.hasData) {
+                return const Center(
+                  child: CircularProgressIndicator(color: Color(0xFF00F0FF)),
+                );
+              }
+              final docs = snapshot.data!.docs;
+              if (docs.isEmpty) {
+                return const Text(
+                  "Henüz kayıtlı bir paket bulunmuyor.",
+                  style: TextStyle(color: Colors.grey),
+                );
+              }
+
+              return ListView.builder(
+                itemCount: docs.length,
+                itemBuilder: (context, index) {
+                  final data = docs[index].data() as Map<String, dynamic>;
+                  final docId = docs[index].id;
+
+                  return Card(
+                    color: const Color(0xFF02090B),
+                    shape: RoundedRectangleBorder(
+                      side: BorderSide(
+                        color: const Color(0xFF00F0FF).withOpacity(0.2),
+                      ),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    margin: const EdgeInsets.only(bottom: 12),
+                    child: ListTile(
+                      leading: const Icon(
+                        Icons.local_offer_outlined,
+                        color: Color(0xFF00F0FF),
+                      ),
+                      title: Text(
+                        data['name'] ?? 'Paket',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      subtitle: Text(
+                        "${data['price']} TL",
+                        style: const TextStyle(color: Colors.greenAccent),
+                      ),
+                      trailing: IconButton(
+                        icon: const Icon(Icons.delete, color: Colors.redAccent),
+                        onPressed: () async {
+                          await FirebaseFirestore.instance
+                              .collection('packages')
+                              .doc(docId)
+                              .delete();
+                        },
+                      ),
+                    ),
+                  );
+                },
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  // Paket Ekleme Fonksiyonu
+  Future<void> _addPackage(String name, double price, String iconStr) async {
+    await FirebaseFirestore.instance.collection('packages').add({
+      'name': name,
+      'price': price,
+      'icon': iconStr,
+      'timestamp': FieldValue.serverTimestamp(),
+    });
   }
 }
 
