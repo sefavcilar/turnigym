@@ -220,6 +220,42 @@ class MainLayout extends StatefulWidget {
 }
 
 class _MainLayoutState extends State<MainLayout> {
+  @override
+  void initState() {
+    super.initState();
+    _listenForEntries();
+  }
+
+  void _listenForEntries() {
+    FirebaseFirestore.instance
+        .collection('pass_logs')
+        .orderBy('timestamp', descending: true)
+        .limit(1)
+        .snapshots()
+        .listen((snapshot) {
+          if (snapshot.docs.isNotEmpty) {
+            final doc = snapshot.docs.first;
+            final data = doc.data();
+            final timestamp = data['timestamp'] ?? 0;
+            if (DateTime.now().millisecondsSinceEpoch - timestamp < 5000) {
+              _showEntryNotification(data['memberName'] ?? 'Bilinmeyen Üye');
+            }
+          }
+        });
+  }
+
+  void _showEntryNotification(String memberName) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          '✅ $memberName içeriye giriş yaptı!',
+          style: const TextStyle(fontWeight: FontWeight.bold),
+        ),
+        backgroundColor: const Color(0xFF00FF66),
+      ),
+    );
+  }
+
   int _selectedIndex = 0;
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = "";
