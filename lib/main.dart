@@ -264,6 +264,7 @@ class _MainLayoutState extends State<MainLayout> {
     'Kontrol Merkezi',
     'Üye & Kredi Yönetimi',
     'Paket & Satış',
+    'Satış Raporları',
     'Geçiş Analitiği',
     'Şirket Tanımlama',
     'Donanım Kalibrasyonu',
@@ -274,6 +275,7 @@ class _MainLayoutState extends State<MainLayout> {
     Icons.token_outlined,
     Icons.group_outlined,
     Icons.add_card_outlined,
+    Icons.receipt_long_outlined,
     Icons.analytics_outlined,
     Icons.business_outlined,
     Icons.developer_board,
@@ -420,6 +422,10 @@ class _MainLayoutState extends State<MainLayout> {
                   Expanded(
                     child: _selectedIndex == 0
                         ? _buildDashboardView()
+                        : _selectedIndex == 1
+                        ? _buildMemberManagementView()
+                        : _selectedIndex == 3
+                        ? _buildSalesReportsView() // Raporları buraya bağladık!
                         : _buildMemberManagementView(),
                   ),
                 ],
@@ -936,7 +942,7 @@ class _MainLayoutState extends State<MainLayout> {
                           child: const Row(
                             children: [
                               Expanded(
-                                flex: 2,
+                                flex: 1,
                                 child: Text(
                                   'Profil',
                                   textAlign: TextAlign.center,
@@ -1322,7 +1328,7 @@ class _MainLayoutState extends State<MainLayout> {
         child: Row(
           children: [
             Expanded(
-              flex: 2,
+              flex: 1,
               child: Center(
                 child: Container(
                   width: 32,
@@ -1386,20 +1392,28 @@ class _MainLayoutState extends State<MainLayout> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
+                  // YENİ SATIŞ BUTONU BURAYA EKLENDİ
+                  IconButton(
+                    icon: const Icon(
+                      Icons.add_shopping_cart,
+                      color: Color(0xFF00FF66),
+                      size: 16,
+                    ),
+                    tooltip: 'Hızlı Kredi Yükle',
+                    onPressed: () => _showQuickSaleDialog(docId, name),
+                  ),
                   IconButton(
                     icon: const Icon(
                       Icons.qr_code_2_outlined,
                       color: Color(0xFF00F0FF),
-                      size: 18,
+                      size: 16,
                     ),
                     tooltip: 'Karekod Oluştur',
-                    onPressed: () {
-                      showDialog(
-                        context: context,
-                        builder: (context) =>
-                            QrDisplayDialog(memberId: docId, memberName: name),
-                      );
-                    },
+                    onPressed: () => showDialog(
+                      context: context,
+                      builder: (_) =>
+                          QrDisplayDialog(memberId: docId, memberName: name),
+                    ),
                   ),
                   const SizedBox(width: 4),
                   IconButton(
@@ -1408,18 +1422,223 @@ class _MainLayoutState extends State<MainLayout> {
                       color: Color(0xFFFF3B30),
                       size: 16,
                     ),
-                    onPressed: () async {
-                      await FirebaseFirestore.instance
-                          .collection('members')
-                          .doc(docId)
-                          .delete();
-                    },
+                    onPressed: () async => await FirebaseFirestore.instance
+                        .collection('members')
+                        .doc(docId)
+                        .delete(),
                   ),
                 ],
               ),
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  void _showQuickSaleDialog(String memberId, String memberName) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF04171A),
+        title: Text(
+          "Kredi Yükle: $memberName",
+          style: const TextStyle(color: Colors.white),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _packageOption("Aylık Paket (Sınırsız)", 500, memberId),
+            const SizedBox(height: 10),
+            _packageOption("10'lu Seans (Kredi)", 300, memberId),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _packageOption(String name, int price, String memberId) {
+    return ListTile(
+      tileColor: const Color(0xFF0B2D33),
+      title: Text(name, style: const TextStyle(color: Colors.white)),
+      trailing: Text(
+        "$price TL",
+        style: const TextStyle(color: Colors.greenAccent),
+      ),
+      onTap: () {
+        // 1. Önce onay iste
+        showDialog(
+          context: context,
+          barrierDismissible:
+              false, // İşlem yapılıyorken yanlışlıkla dışarı tıklamayı engelle
+          builder: (BuildContext dialogContext) {
+            bool isLoading = false;
+            return StatefulBuilder(
+              builder: (BuildContext stateContext, StateSetter setState) {
+                return AlertDialog(
+                  backgroundColor: const Color(0xFF04171A),
+                  title: Text(
+                    isLoading ? "İşlem Yapılıyor..." : "Satışı Onayla",
+                    style: const TextStyle(color: Colors.white),
+                  ),
+                  content: isLoading
+                      ? const Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            CircularProgressIndicator(color: Color(0xFF00FF66)),
+                            SizedBox(height: 16),
+                            Text(
+                              "Veritabanı güncelleniyor...",
+                              style: TextStyle(color: Colors.white70),
+                            ),
+                          ],
+                        )
+                      : Text(
+                          "$name için $price TL tahsil edilecek. Onaylıyor musunuz?",
+                        ),
+                  actions: isLoading
+                      ? [] // Yüklenirken butonları gizle
+                      : [
+                          TextButton(
+                            onPressed: () => Navigator.pop(dialogContext),
+                            child: const Text("İptal"),
+                          ),
+                          ElevatedButton(
+                            onPressed: () async {
+                              setState(
+                                () => isLoading = true,
+                              ); // Spinner animasyonunu aktif et
+                              await _performSale(
+                                memberId,
+                                price,
+                                name,
+                              ); // İşlemi yap (İlk ekranı kendi içindeki pop kapatacak)
+
+                              if (mounted)
+                                Navigator.pop(
+                                  context,
+                                ); // Arka planda kalan paket seçme ekranını da kapat
+                            },
+                            child: const Text("ONAYLA"),
+                          ),
+                        ],
+                );
+              },
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Future<void> _performSale(String memberId, int price, String name) async {
+    // 1. Firebase güncellemeleri
+    await FirebaseFirestore.instance.collection('members').doc(memberId).update(
+      {'credit': FieldValue.increment(price)},
+    );
+
+    await FirebaseFirestore.instance.collection('transactions').add({
+      'memberId': memberId,
+      'amount': price,
+      'packageName': name,
+      'timestamp': DateTime.now().millisecondsSinceEpoch,
+    });
+
+    // 2. Başarı mesajı (SnackBar)
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.check_circle, color: Colors.white),
+              const SizedBox(width: 10),
+              Text('Satış başarılı: $name - $price TL yüklendi!'),
+            ],
+          ),
+          backgroundColor: const Color(0xFF00FF66),
+          duration: const Duration(seconds: 3),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+
+      Navigator.pop(context); // İlk açılan Paket seçimi diyaloğunu kapat
+    }
+  }
+
+  Widget _buildSalesReportsView() {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: const Color(0xFF04171A),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            "FİNANSAL SATIŞ RAPORLARI",
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 20),
+          Expanded(
+            child: StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection('transactions')
+                  .orderBy('timestamp', descending: true)
+                  .snapshots(),
+              builder: (context, snapshot) {
+                if (!snapshot.hasData)
+                  return const Center(child: CircularProgressIndicator());
+                final docs = snapshot.data!.docs;
+                if (docs.isEmpty)
+                  return const Center(
+                    child: Text(
+                      "Henüz satış yok.",
+                      style: TextStyle(color: Colors.grey),
+                    ),
+                  );
+
+                return ListView.builder(
+                  itemCount: docs.length,
+                  itemBuilder: (context, index) {
+                    final data = docs[index].data() as Map<String, dynamic>;
+                    return Card(
+                      color: const Color(0xFF0B2D33),
+                      child: ListTile(
+                        leading: const Icon(
+                          Icons.receipt_long,
+                          color: Color(0xFF00F0FF),
+                        ),
+                        title: Text(
+                          data['packageName'] ?? 'Paket',
+                          style: const TextStyle(color: Colors.white),
+                        ),
+                        subtitle: Text(
+                          DateFormat('dd.MM.yyyy HH:mm').format(
+                            DateTime.fromMillisecondsSinceEpoch(
+                              data['timestamp'],
+                            ),
+                          ),
+                        ),
+                        trailing: Text(
+                          "${data['amount']} TL",
+                          style: const TextStyle(
+                            color: Colors.greenAccent,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
   }
