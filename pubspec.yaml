@@ -18,6 +18,8 @@ dependencies:
   cupertino_icons: ^1.0.8
   shared_preferences: ^2.5.0  # <-- Bunu ekle!
   crypto: ^3.0.7
+  provider: ^6.1.2
+  google_fonts: ^6.1.0
   
 dev_dependencies:
   flutter_test:
@@ -32,3 +34,4 @@ flutter:
     - assets/images/cihaz_durumu.png
     - assets/images/kiz.png
     - assets/images/erkek.png
+   

@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 import 'main.dart'; // MainLayout'a erişebilmek için
+import 'app_colors.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'register_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -12,6 +16,21 @@ class _LoginScreenState extends State<LoginScreen> {
   // Controller'ları final olarak tanımlıyoruz
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
+  bool _rememberMe = false; // "Beni Hatırla" durumu
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSavedEmail();
+  }
+
+  Future<void> _loadSavedEmail() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _emailController.text = prefs.getString('saved_email') ?? '';
+      if (_emailController.text.isNotEmpty) _rememberMe = true;
+    });
+  }
 
   @override
   void dispose() {
@@ -21,25 +40,53 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  void _login() {
+  Future<void> _login() async {
     final email = _emailController.text.trim();
     final password = _passwordController.text;
 
     debugPrint('Giriş denemesi -> Email: $email, Şifre: $password');
 
-    // 🚀 Giriş başarılı kabul edilip ana sayfaya güvenli geçiş:
-    if (mounted) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const MainLayout()),
+    if (email.isEmpty || password.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Lütfen E-posta ve Şifrenizi girin.'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
+      return;
+    }
+
+    try {
+      if (_rememberMe) {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('saved_email', _emailController.text);
+      }
+
+      // Gerçek Firebase Giriş İşlemi (Bypass Kaldırıldı)
+      await FirebaseAuth.instance.signInWithEmailAndPassword(
+        email: email,
+        password: password,
       );
+      // Not: Yönlendirme yapmıyoruz çünkü main.dart'taki StreamBuilder girişi algılayıp otomatik MainLayout'a atacak.
+    } on FirebaseAuthException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Giriş başarısız: ${e.message ?? "Bilgilerinizi kontrol edin."}',
+            ),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('TurniGym Giriş'), centerTitle: true),
       // 🌟 Taşma (RenderFlex overflow) hatasını önlemek için SingleChildScrollView şart!
       body: Center(
         child: SingleChildScrollView(
@@ -48,48 +95,115 @@ class _LoginScreenState extends State<LoginScreen> {
             constraints: const BoxConstraints(
               maxWidth: 400,
             ), // Web'de çok yayılmasın
-            padding: const EdgeInsets.all(24.0),
+            padding: const EdgeInsets.all(32.0),
             decoration: BoxDecoration(
-              color: const Color(0xFF04171A),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: const Color(0xFF00F0FF).withOpacity(0.3),
-              ),
+              color: AppColors.card(context),
+              borderRadius: BorderRadius.circular(20),
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const Icon(
-                  Icons.lock_outline,
-                  size: 64,
-                  color: Color(0xFF00F0FF),
+                SizedBox(
+                  width: 250,
+                  child: Image.asset(
+                    'assets/images/turnigym.png',
+                    fit: BoxFit.contain,
+                  ),
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 32),
                 TextField(
                   controller: _emailController,
                   keyboardType: TextInputType.emailAddress,
-                  decoration: const InputDecoration(
+                  style: TextStyle(color: AppColors.text(context)),
+                  decoration: InputDecoration(
                     labelText: 'E-posta',
-                    prefixIcon: Icon(Icons.email_outlined),
-                    border: OutlineInputBorder(),
+                    labelStyle: TextStyle(color: AppColors.textMuted(context)),
+                    prefixIcon: const Icon(
+                      Icons.email_outlined,
+                      color: AppColors.neonCyan,
+                    ),
+                    border: const OutlineInputBorder(),
                   ),
                 ),
                 const SizedBox(height: 16),
                 TextField(
                   controller: _passwordController,
                   obscureText: true,
-                  decoration: const InputDecoration(
+                  style: TextStyle(color: AppColors.text(context)),
+                  decoration: InputDecoration(
                     labelText: 'Şifre',
-                    prefixIcon: Icon(Icons.lock_open_outlined),
-                    border: OutlineInputBorder(),
+                    labelStyle: TextStyle(color: AppColors.textMuted(context)),
+                    prefixIcon: const Icon(
+                      Icons.lock_open_outlined,
+                      color: AppColors.neonCyan,
+                    ),
+                    border: const OutlineInputBorder(),
                   ),
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 16),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        Checkbox(
+                          value: _rememberMe,
+                          onChanged: (val) =>
+                              setState(() => _rememberMe = val!),
+                          activeColor: AppColors.neonGreen,
+                        ),
+                        Text(
+                          "Beni Hatırla",
+                          style: TextStyle(color: AppColors.textMuted(context)),
+                        ),
+                      ],
+                    ),
+                    TextButton(
+                      onPressed: () async {
+                        if (_emailController.text.trim().isEmpty) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                "Lütfen önce E-posta adresini girin.",
+                              ),
+                            ),
+                          );
+                          return;
+                        }
+                        try {
+                          await FirebaseAuth.instance.sendPasswordResetEmail(
+                            email: _emailController.text.trim(),
+                          );
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                  "Şifre sıfırlama bağlantısı e-postanıza gönderildi.",
+                                ),
+                              ),
+                            );
+                          }
+                        } catch (e) {
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text("Hata: ${e.toString()}")),
+                            );
+                          }
+                        }
+                      },
+                      child: const Text(
+                        "Şifremi Unuttum",
+                        style: TextStyle(color: AppColors.neonCyan),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
                 ElevatedButton(
                   onPressed: _login,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF00FF66),
+                    backgroundColor: AppColors.neonGreen,
                     foregroundColor: Colors.black,
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(
@@ -99,6 +213,32 @@ class _LoginScreenState extends State<LoginScreen> {
                   child: const Text(
                     'GİRİŞ YAP',
                     style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                TextButton(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const RegisterScreen(),
+                      ),
+                    );
+                  },
+                  child: RichText(
+                    text: TextSpan(
+                      text: "Hesabınız yok mu? ",
+                      style: TextStyle(color: AppColors.textMuted(context)),
+                      children: const [
+                        TextSpan(
+                          text: "Hemen Kayıt Olun",
+                          style: TextStyle(
+                            color: AppColors.neonGreen,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ],

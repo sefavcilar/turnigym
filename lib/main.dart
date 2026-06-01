@@ -12,34 +12,70 @@ import 'package:crypto/crypto.dart';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'login_screen.dart';
+import 'package:provider/provider.dart';
+import 'theme_provider.dart';
+import 'app_colors.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-  runApp(const TurniGymApp());
+  if (Firebase.apps.isEmpty) {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+  } else {
+    Firebase.app(); // Zaten başlatılmışsa olanı kullan
+  }
+  runApp(
+    ChangeNotifierProvider(
+      create: (_) => ThemeProvider(),
+      child: const TurniGymApp(),
+    ),
+  );
 }
 
 class TurniGymApp extends StatelessWidget {
   const TurniGymApp({super.key});
   @override
   Widget build(BuildContext context) {
+    final themeProvider = Provider.of<ThemeProvider>(context);
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      theme: ThemeData.dark().copyWith(
-        scaffoldBackgroundColor: const Color(0xFF030E11),
-        cardColor: const Color(0xFF04171A),
-        primaryColor: const Color(0xFF00F0FF),
-      ),
-      home: kDebugMode
-          ? const MainLayout() // Geliştirme modunda giriş ekranını bypass et
-          : StreamBuilder<User?>(
-              // Canlı ortamda (release) girişi aktif tut
-              stream: FirebaseAuth.instance.authStateChanges(),
-              builder: (context, snapshot) {
-                if (snapshot.hasData) return const MainLayout();
-                return const LoginScreen();
-              },
+      themeMode: themeProvider.themeMode,
+      theme: ThemeData(
+        brightness: Brightness.light,
+        scaffoldBackgroundColor:
+            Colors.white, // Tüm o siyah/koyu yerleri beyaz yapar
+        cardColor:
+            Colors.grey[100], // Kartları hafif gri yaparak derinlik katar
+        primaryColor: Colors.black, // Yazıları siyah yapar
+        textTheme: GoogleFonts.quicksandTextTheme(ThemeData.light().textTheme)
+            .copyWith(
+              headlineLarge: GoogleFonts.quicksand(fontWeight: FontWeight.w800),
             ),
+        primaryTextTheme: GoogleFonts.quicksandTextTheme(
+          ThemeData.light().primaryTextTheme,
+        ),
+      ),
+      darkTheme: ThemeData.dark().copyWith(
+        scaffoldBackgroundColor: AppColors.darkBackground,
+        cardColor: AppColors.darkCard,
+        primaryColor: AppColors.neonCyan,
+        textTheme: GoogleFonts.quicksandTextTheme(ThemeData.dark().textTheme)
+            .copyWith(
+              headlineLarge: GoogleFonts.quicksand(fontWeight: FontWeight.w800),
+            ),
+        primaryTextTheme: GoogleFonts.quicksandTextTheme(
+          ThemeData.dark().primaryTextTheme,
+        ),
+      ),
+      home: StreamBuilder<User?>(
+        stream: FirebaseAuth.instance.authStateChanges(),
+        builder: (context, snapshot) {
+          if (snapshot.hasData) return const MainLayout();
+          return const LoginScreen();
+        },
+      ),
     );
   }
 }
@@ -239,7 +275,6 @@ class MainLayout extends StatefulWidget {
 
 class _MainLayoutState extends State<MainLayout> {
   // --- EKSİK TANIMLAMALAR ---
-  final TextEditingController _logoUrlController = TextEditingController();
   bool _showInsideCard = true; // Varsayılan olarak göster
   String _listRowCount =
       '10'; // Varsayılan satır sayısı (Dropdown String beklediği için String tanımlandı)
@@ -247,16 +282,40 @@ class _MainLayoutState extends State<MainLayout> {
   final TextEditingController _salonCapacityController =
       TextEditingController();
   int _salonCapacity = 50; // Varsayılan değer
+  String? _currentLogoUrl; // Logoyu ekranda tutmak için
+  final TextEditingController _logoUrlController =
+      TextEditingController(); // URL tabanlı logo giriş kutusu
+
+  String get salonId => FirebaseAuth.instance.currentUser!.uid;
   // ----------------------------------
 
   @override
   void initState() {
     super.initState();
     _listenForEntries();
+    _loadGeneralSettings();
+  }
+
+  Future<void> _loadGeneralSettings() async {
+    final doc = await FirebaseFirestore.instance
+        .collection('salonlar')
+        .doc(salonId)
+        .collection('sistem_ayarları')
+        .doc('general')
+        .get();
+    if (doc.exists && mounted) {
+      setState(() {
+        final String? logoUrl = doc.data()?['logo_url'];
+        _currentLogoUrl = logoUrl;
+        _logoUrlController.text = _currentLogoUrl ?? '';
+      });
+    }
   }
 
   void _listenForEntries() {
     FirebaseFirestore.instance
+        .collection('salonlar')
+        .doc(salonId)
         .collection('pass_logs')
         .orderBy('timestamp', descending: true)
         .limit(1)
@@ -297,6 +356,67 @@ class _MainLayoutState extends State<MainLayout> {
     );
   }
 
+  void _showProfileModal(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF04171A),
+        title: const Text(
+          "Profilim",
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CircleAvatar(
+              radius: 40,
+              backgroundColor: Colors.transparent,
+              backgroundImage: NetworkImage(
+                "https://raw.githubusercontent.com/flutter/website/main/src/images/flutter-logo-sharing.png",
+              ),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              "Admin: Sefa Avcılar", // İleride Firestore'dan çekilebilir
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 16),
+            ListTile(
+              leading: const Icon(Icons.lock, color: Colors.white),
+              title: const Text(
+                "Şifre Değiştir",
+                style: TextStyle(color: Colors.white),
+              ),
+              onTap: () {
+                Navigator.pop(context); // Önce profil modalını kapat
+                showDialog(
+                  context: context,
+                  barrierDismissible: false,
+                  builder: (context) => const ChangePasswordDialog(),
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.logout, color: Colors.redAccent),
+              title: const Text(
+                "Oturumu Kapat",
+                style: TextStyle(color: Colors.redAccent),
+              ),
+              onTap: () async {
+                Navigator.pop(context); // Önce modalı kapat
+                await FirebaseAuth.instance.signOut(); // Sonra çıkış yap
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   int _selectedIndex = 0;
   bool _isProcessing = false;
   final TextEditingController _searchController = TextEditingController();
@@ -333,13 +453,14 @@ class _MainLayoutState extends State<MainLayout> {
     _packageNameController.dispose();
     _packagePriceController.dispose();
     _packageIconController.dispose();
-    _logoUrlController.dispose();
     _salonCapacityController.dispose();
+    _logoUrlController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    final themeProvider = Provider.of<ThemeProvider>(context);
     return Scaffold(
       body: Row(
         children: [
@@ -352,7 +473,13 @@ class _MainLayoutState extends State<MainLayout> {
             child: Column(
               children: [
                 const SizedBox(height: 20),
-                Image.asset('assets/images/turnigym.png', width: 180),
+                SizedBox(
+                  width: 250, // Tam istediğin genişlik
+                  child: Image.asset(
+                    'assets/images/turnigym.png',
+                    fit: BoxFit.contain, // Logoyu kutunun içine oranlı sığdırır
+                  ),
+                ),
                 const SizedBox(height: 15),
                 Expanded(
                   child: ListView.builder(
@@ -421,17 +548,14 @@ class _MainLayoutState extends State<MainLayout> {
                         children: [
                           const Text(
                             'Yönetim Paneli',
-                            style: TextStyle(
-                              color: Color(0xFF627E82),
-                              fontSize: 15,
-                            ),
+                            style: TextStyle(color: Colors.grey),
                           ),
                           const SizedBox(height: 4),
                           Text(
                             _menuTitles[_selectedIndex],
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 26,
+                            style: TextStyle(
+                              color: AppColors.text(context),
+                              fontSize: 32,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
@@ -439,6 +563,49 @@ class _MainLayoutState extends State<MainLayout> {
                       ),
                       Row(
                         children: [
+                          // 🌟 SAĞ TARAFTAKİ YENİ YERİ: Dinamik Marka İsmi
+                          StreamBuilder<DocumentSnapshot>(
+                            stream: FirebaseFirestore.instance
+                                .collection('salonlar')
+                                .doc(salonId)
+                                .snapshots(),
+                            builder: (context, snapshot) {
+                              if (!snapshot.hasData)
+                                return const SizedBox(); // Yüklenirken boş bırak
+
+                              String salonAdi = '';
+                              if (snapshot.data!.data() != null) {
+                                final data =
+                                    snapshot.data!.data()
+                                        as Map<String, dynamic>;
+                                salonAdi = data['salonAdi'] ?? '';
+                              }
+
+                              return Text(
+                                salonAdi
+                                    .toUpperCase(), // İSMİ BURAYA DEV EKRANDA BASIYORUZ
+                                style: GoogleFonts.quicksand(
+                                  fontSize: 36,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.neonCyan,
+                                  letterSpacing: 1.2,
+                                ),
+                              );
+                            },
+                          ),
+                          const SizedBox(width: 32),
+                          IconButton(
+                            icon: Icon(
+                              themeProvider.themeMode == ThemeMode.dark
+                                  ? Icons.wb_sunny
+                                  : Icons.nightlight_round,
+                              color: AppColors.text(context),
+                            ),
+                            onPressed: () {
+                              themeProvider.toggleTheme();
+                            },
+                          ),
+                          const SizedBox(width: 12),
                           IconButton(
                             icon: const Stack(
                               children: [
@@ -476,6 +643,12 @@ class _MainLayoutState extends State<MainLayout> {
                             onSelected: (value) async {
                               if (value == 'logout') {
                                 await FirebaseAuth.instance.signOut();
+                              } else if (value == 'profile') {
+                                _showProfileModal(context);
+                              } else if (value == 'settings') {
+                                setState(() {
+                                  _selectedIndex = 7; // Sistem Ayarları Sekmesi
+                                });
                               }
                             },
                             itemBuilder: (context) => [
@@ -519,6 +692,10 @@ class _MainLayoutState extends State<MainLayout> {
                         ? _buildSalesReportsView() // Raporları buraya bağladık!
                         : _selectedIndex == 4
                         ? _buildPassAnalyticsView() // Geçiş Analitiği sayfası
+                        : _selectedIndex == 5
+                        ? _buildCompanyManagementView() // Şirket Tanımlama
+                        : _selectedIndex == 6
+                        ? _buildHardwareCalibrationView() // Donanım Kalibrasyonu
                         : _selectedIndex == 7
                         ? _buildSystemSettingsView() // Sistem Ayarları (Paket Tanımlama)
                         : _buildMemberManagementView(),
@@ -528,6 +705,156 @@ class _MainLayoutState extends State<MainLayout> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildCompanyManagementView() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.business_center, size: 80, color: Colors.cyan),
+          const SizedBox(height: 30),
+          const Text(
+            "Kurumsal Üyelik ve İş Ortağı Yönetimi",
+            style: TextStyle(
+              fontSize: 26,
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 20),
+          Container(
+            width: 600, // Sayfanın ortasında şık durması için
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.05),
+              borderRadius: BorderRadius.circular(15),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _featureItem(
+                  Icons.apartment,
+                  "Kurumsal Çatı",
+                  "Fabrika veya ofis bazlı grup üyeliklerini tek merkezden tanımlayın.",
+                ),
+                _featureItem(
+                  Icons.bar_chart,
+                  "Şirket Raporlaması",
+                  "Hangi şirketin üyeleri, günün hangi saatlerinde salonunuzu daha aktif kullanıyor?",
+                ),
+                _featureItem(
+                  Icons.handshake,
+                  "Sözleşme Yönetimi",
+                  "Kurumsal indirim tanımları ve özel paket sözleşmelerini dijitalleştirin.",
+                ),
+                _featureItem(
+                  Icons.trending_up,
+                  "Verimlilik Analizi",
+                  "Anlaşmalı firmalarınızın 'Kredi' tüketim ve 'Kullanım' verimliliklerini izleyin.",
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _featureItem(IconData icon, String title, String description) {
+    return ListTile(
+      leading: Icon(icon, color: Colors.cyanAccent),
+      title: Text(
+        title,
+        style: const TextStyle(
+          color: Colors.white,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+      subtitle: Text(
+        description,
+        style: const TextStyle(color: Colors.white70),
+      ),
+    );
+  }
+
+  Widget _buildHardwareCalibrationView() {
+    return ListView(
+      padding: const EdgeInsets.all(40),
+      children: [
+        const Icon(
+          Icons.settings_input_component,
+          size: 80,
+          color: Colors.cyan,
+        ),
+        const SizedBox(height: 30),
+        const Text(
+          "Donanım ve Sistem Kalibrasyonu",
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: 24,
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 40),
+        _buildFeatureTile(
+          Icons.wifi,
+          "Canlı Bağlantı İzleme",
+          "Raspberry Pi ve turnike sistemlerinin anlık durumunu takip edin.",
+        ),
+        _buildFeatureTile(
+          Icons.speed,
+          "Gecikme Analizi",
+          "Komutların iletilme süresini ölçerek performansı optimize edin.",
+        ),
+        _buildFeatureTile(
+          Icons.sync_alt,
+          "Senkronizasyon Durumu",
+          "Yerel ağdaki cihazların bulut ile veri eşzamanlamasını kontrol edin.",
+        ),
+      ],
+    );
+  }
+
+  Widget _buildFeatureTile(IconData icon, String title, String subtitle) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        color: const Color(0xFF04171A),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFF00F0FF).withOpacity(0.3)),
+      ),
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 20,
+          vertical: 12,
+        ),
+        leading: Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: const Color(0xFF00F0FF).withOpacity(0.1),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(icon, color: const Color(0xFF00F0FF), size: 28),
+        ),
+        title: Text(
+          title,
+          style: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+            fontSize: 16,
+          ),
+        ),
+        subtitle: Padding(
+          padding: const EdgeInsets.only(top: 8.0),
+          child: Text(
+            subtitle,
+            style: const TextStyle(color: Color(0xFF627E82), fontSize: 13),
+          ),
+        ),
       ),
     );
   }
@@ -548,9 +875,20 @@ class _MainLayoutState extends State<MainLayout> {
                   Expanded(
                     child: StreamBuilder<QuerySnapshot>(
                       stream: FirebaseFirestore.instance
-                          .collection('members')
+                          .collection('salonlar')
+                          .doc(salonId)
+                          .collection('uyeler')
                           .snapshots(),
                       builder: (context, snapshot) {
+                        if (snapshot.hasError) {
+                          print("Toplam Üye Hatası: ${snapshot.error}");
+                          return _buildStatCard(
+                            'TOPLAM AKTİF ÜYE',
+                            'Hata',
+                            Icons.people,
+                            const Color(0xFF00FF66),
+                          );
+                        }
                         String totalMembers = snapshot.hasData
                             ? '${snapshot.data!.docs.length}'
                             : '...';
@@ -567,10 +905,21 @@ class _MainLayoutState extends State<MainLayout> {
                   Expanded(
                     child: StreamBuilder<QuerySnapshot>(
                       stream: FirebaseFirestore.instance
+                          .collection('salonlar')
+                          .doc(salonId)
                           .collection('pass_logs')
                           .where('date', isEqualTo: todayStr)
                           .snapshots(),
                       builder: (context, snapshot) {
+                        if (snapshot.hasError) {
+                          print("Bugünkü Geçiş Hatası: ${snapshot.error}");
+                          return _buildStatCard(
+                            'BUGÜNKÜ GEÇİŞ',
+                            'Hata',
+                            Icons.swap_horiz,
+                            const Color(0xFF00F0FF),
+                          );
+                        }
                         String todayPass = snapshot.hasData
                             ? '${snapshot.data!.docs.length}'
                             : '...';
@@ -587,10 +936,21 @@ class _MainLayoutState extends State<MainLayout> {
                   Expanded(
                     child: StreamBuilder<QuerySnapshot>(
                       stream: FirebaseFirestore.instance
+                          .collection('salonlar')
+                          .doc(salonId)
                           .collection('pass_logs')
                           .where('date', isEqualTo: todayStr)
                           .snapshots(),
                       builder: (context, snapshot) {
+                        if (snapshot.hasError) {
+                          print("Harcanan Kredi Hatası: ${snapshot.error}");
+                          return _buildStatCard(
+                            'HARCANAN KREDİ',
+                            'Hata',
+                            Icons.credit_score,
+                            const Color(0xFFFF6B00),
+                          );
+                        }
                         String todayCredit = snapshot.hasData
                             ? '${snapshot.data!.docs.length}'
                             : '...';
@@ -684,7 +1044,9 @@ class _MainLayoutState extends State<MainLayout> {
 
                                 final memberSnapshot = await FirebaseFirestore
                                     .instance
-                                    .collection('members')
+                                    .collection('salonlar')
+                                    .doc(salonId)
+                                    .collection('uyeler')
                                     .orderBy('timestamp', descending: true)
                                     .limit(1)
                                     .get();
@@ -706,7 +1068,9 @@ class _MainLayoutState extends State<MainLayout> {
                                   if (currentCredit > 0) {
                                     // 2. Canlı trafiği güncelle (Durumu tersine çevir) ve krediyi düş
                                     await FirebaseFirestore.instance
-                                        .collection('members')
+                                        .collection('salonlar')
+                                        .doc(salonId)
+                                        .collection('uyeler')
                                         .doc(docId)
                                         .update({
                                           'credit': currentCredit - 1,
@@ -716,6 +1080,8 @@ class _MainLayoutState extends State<MainLayout> {
                                     final now = DateTime.now();
                                     // 3. Geçiş günlüğüne yaz (Dashboard'daki sayılar artar)
                                     await FirebaseFirestore.instance
+                                        .collection('salonlar')
+                                        .doc(salonId)
                                         .collection('pass_logs')
                                         .add({
                                           'memberName': memberName,
@@ -986,10 +1352,19 @@ class _MainLayoutState extends State<MainLayout> {
       child: StreamBuilder<QuerySnapshot>(
         // 'isInside' alanı true olan üyeleri filtreliyoruz
         stream: FirebaseFirestore.instance
-            .collection('members')
+            .collection('salonlar')
+            .doc(salonId)
+            .collection('uyeler')
             .where('isInside', isEqualTo: true)
             .snapshots(),
         builder: (context, snapshot) {
+          if (snapshot.hasError) {
+            print("İçeridekiler Hatası: ${snapshot.error}");
+            return Text(
+              "Hata: ${snapshot.error}",
+              style: const TextStyle(color: Colors.redAccent, fontSize: 12),
+            );
+          }
           if (!snapshot.hasData) {
             return const CircularProgressIndicator(color: Color(0xFF00FF66));
           }
@@ -1191,13 +1566,20 @@ class _MainLayoutState extends State<MainLayout> {
                         Expanded(
                           child: StreamBuilder<QuerySnapshot>(
                             stream: FirebaseFirestore.instance
-                                .collection('members')
+                                .collection('salonlar')
+                                .doc(salonId)
+                                .collection('uyeler')
                                 .snapshots(),
                             builder: (context, snapshot) {
-                              if (snapshot.hasError)
+                              if (snapshot.hasError) {
+                                print("Üye Listesi Hatası: ${snapshot.error}");
                                 return const Center(
-                                  child: Text('Hata oluştu.'),
+                                  child: Text(
+                                    'Hata oluştu. Konsolu kontrol edin.',
+                                    style: TextStyle(color: Colors.redAccent),
+                                  ),
                                 );
+                              }
                               if (snapshot.connectionState ==
                                   ConnectionState.waiting) {
                                 return const Center(
@@ -1375,21 +1757,25 @@ class _MainLayoutState extends State<MainLayout> {
                       Expanded(
                         child: StreamBuilder<QuerySnapshot>(
                           stream: FirebaseFirestore.instance
+                              .collection('salonlar')
+                              .doc(salonId)
                               .collection('pass_logs')
                               .orderBy('timestamp', descending: true)
                               .limit(10)
                               .snapshots(),
                           builder: (context, snapshot) {
-                            if (snapshot.hasError)
-                              return const Center(
+                            if (snapshot.hasError) {
+                              print("Son Geçişler Hatası: ${snapshot.error}");
+                              return Center(
                                 child: Text(
-                                  'Log hatası.',
+                                  'Hata: ${snapshot.error}',
                                   style: TextStyle(
-                                    color: Colors.red,
+                                    color: Colors.redAccent,
                                     fontSize: 11,
                                   ),
                                 ),
                               );
+                            }
                             if (snapshot.connectionState ==
                                 ConnectionState.waiting) {
                               return const Center(
@@ -1608,7 +1994,9 @@ class _MainLayoutState extends State<MainLayout> {
                       size: 16,
                     ),
                     onPressed: () async => await FirebaseFirestore.instance
-                        .collection('members')
+                        .collection('salonlar')
+                        .doc(salonId)
+                        .collection('uyeler')
                         .doc(docId)
                         .delete(),
                   ),
@@ -1718,16 +2106,23 @@ class _MainLayoutState extends State<MainLayout> {
 
   Future<void> _performSale(String memberId, int price, String name) async {
     // 1. Firebase güncellemeleri
-    await FirebaseFirestore.instance.collection('members').doc(memberId).update(
-      {'credit': FieldValue.increment(price)},
-    );
+    await FirebaseFirestore.instance
+        .collection('salonlar')
+        .doc(salonId)
+        .collection('uyeler')
+        .doc(memberId)
+        .update({'credit': FieldValue.increment(price)});
 
-    await FirebaseFirestore.instance.collection('transactions').add({
-      'memberId': memberId,
-      'amount': price,
-      'packageName': name,
-      'timestamp': DateTime.now().millisecondsSinceEpoch,
-    });
+    await FirebaseFirestore.instance
+        .collection('salonlar')
+        .doc(salonId)
+        .collection('transactions')
+        .add({
+          'memberId': memberId,
+          'amount': price,
+          'packageName': name,
+          'timestamp': DateTime.now().millisecondsSinceEpoch,
+        });
 
     // 2. Başarı mesajı (SnackBar)
     if (mounted) {
@@ -1772,11 +2167,20 @@ class _MainLayoutState extends State<MainLayout> {
           const SizedBox(height: 16),
           StreamBuilder<QuerySnapshot>(
             stream: FirebaseFirestore.instance
+                .collection('salonlar')
+                .doc(salonId)
                 .collection('pass_logs')
                 .orderBy('timestamp', descending: true)
                 .limit(5)
                 .snapshots(),
             builder: (context, snapshot) {
+              if (snapshot.hasError) {
+                print("Sistem Bildirimleri Hatası: ${snapshot.error}");
+                return Text(
+                  "Hata: ${snapshot.error}",
+                  style: const TextStyle(color: Colors.redAccent),
+                );
+              }
               if (!snapshot.hasData)
                 return const Center(
                   child: CircularProgressIndicator(color: Color(0xFF00F0FF)),
@@ -1825,10 +2229,21 @@ class _MainLayoutState extends State<MainLayout> {
   Widget _buildPackageStoreView() {
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance
+          .collection('salonlar')
+          .doc(salonId)
           .collection('packages')
           .orderBy('price')
           .snapshots(),
       builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          print("Paket Market Hatası: ${snapshot.error}");
+          return Center(
+            child: Text(
+              "Hata: ${snapshot.error}",
+              style: const TextStyle(color: Colors.redAccent),
+            ),
+          );
+        }
         if (!snapshot.hasData) {
           return const Center(
             child: CircularProgressIndicator(color: Color(0xFF00F0FF)),
@@ -1954,10 +2369,21 @@ class _MainLayoutState extends State<MainLayout> {
           Expanded(
             child: StreamBuilder<QuerySnapshot>(
               stream: FirebaseFirestore.instance
+                  .collection('salonlar')
+                  .doc(salonId)
                   .collection('transactions')
                   .orderBy('timestamp', descending: true)
                   .snapshots(),
               builder: (context, snapshot) {
+                if (snapshot.hasError) {
+                  print("Satış Raporları Hatası: ${snapshot.error}");
+                  return Center(
+                    child: Text(
+                      "Hata: ${snapshot.error}",
+                      style: const TextStyle(color: Colors.redAccent),
+                    ),
+                  );
+                }
                 if (!snapshot.hasData)
                   return const Center(child: CircularProgressIndicator());
                 final docs = snapshot.data!.docs;
@@ -2086,9 +2512,20 @@ class _MainLayoutState extends State<MainLayout> {
           Expanded(
             child: StreamBuilder<QuerySnapshot>(
               stream: FirebaseFirestore.instance
+                  .collection('salonlar')
+                  .doc(salonId)
                   .collection('pass_logs')
                   .snapshots(),
               builder: (context, snapshot) {
+                if (snapshot.hasError) {
+                  print("Geçiş Analitiği Hatası: ${snapshot.error}");
+                  return Center(
+                    child: Text(
+                      "Hata: ${snapshot.error}",
+                      style: const TextStyle(color: Colors.redAccent),
+                    ),
+                  );
+                }
                 if (!snapshot.hasData) {
                   return const Center(
                     child: CircularProgressIndicator(color: Color(0xFF00F0FF)),
@@ -2409,9 +2846,60 @@ class _MainLayoutState extends State<MainLayout> {
     return occupancy > 100 ? 100 : occupancy;
   }
 
+  // URL ile Güncelleme Fonksiyonu
+  Future<void> _updateLogoUrl() async {
+    try {
+      final newUrl = _logoUrlController.text.trim();
+      // Not: Eski sisteme uyumlu olması için alan adını "logoUrl" olarak tutuyoruz.
+      await FirebaseFirestore.instance
+          .collection('salonlar')
+          .doc(salonId)
+          .collection('sistem_ayarları')
+          .doc('general')
+          .set({'logo_url': newUrl}, SetOptions(merge: true));
+
+      if (mounted) {
+        setState(() {
+          _currentLogoUrl = newUrl.isEmpty
+              ? null
+              : newUrl; // Arayüzü anında güncelle
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              "✅ Logo URL başarıyla güncellendi!",
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            backgroundColor: Color(0xFF00FF66),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              "Bir hata oluştu, lütfen tekrar deneyin.",
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            backgroundColor: Colors.redAccent,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
+  }
+
   Widget _buildSystemSettingsView() {
     return DefaultTabController(
-      length: 2,
+      length: 3,
       child: Container(
         padding: const EdgeInsets.all(24),
         decoration: BoxDecoration(
@@ -2437,6 +2925,7 @@ class _MainLayoutState extends State<MainLayout> {
               tabs: [
                 Tab(text: "Paket Yönetimi", icon: Icon(Icons.shopping_bag)),
                 Tab(text: "Genel Ayarlar", icon: Icon(Icons.settings)),
+                Tab(text: "Güvenlik", icon: Icon(Icons.security)),
               ],
             ),
             const SizedBox(height: 24),
@@ -2445,6 +2934,108 @@ class _MainLayoutState extends State<MainLayout> {
                 children: [
                   _buildPackageManagementSection(),
                   _buildGeneralSettingsSection(),
+                  _buildSecuritySettingsSection(),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSecuritySettingsSection() {
+    return SingleChildScrollView(
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: const Color(0xFF0B2D33),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: const Color(0xFF00F0FF).withOpacity(0.3)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              "Güvenlik ve Erişim Ayarları",
+              style: TextStyle(
+                color: Color(0xFF00F0FF),
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Theme(
+              data: Theme.of(
+                context,
+              ).copyWith(dividerColor: Colors.transparent),
+              child: ExpansionTile(
+                tilePadding: EdgeInsets.zero,
+                leading: const Icon(Icons.lock_outline, color: Colors.white),
+                iconColor: const Color(0xFF00F0FF),
+                collapsedIconColor: const Color(0xFF627E82),
+                title: const Text(
+                  "Güvenlik ve Parola",
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                subtitle: const Text(
+                  "Hesap şifrenizi güvenli bir şekilde güncelleyin.",
+                  style: TextStyle(color: Color(0xFF627E82), fontSize: 12),
+                ),
+                children: [
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF02090B),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: const Color(0xFF00F0FF).withOpacity(0.1),
+                      ),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          "Şifre yenileme işlemi, yüksek güvenlik gerektirdiği için 3 adımlı doğrulama (Eski Şifre -> Yeni Şifre -> Tekrar) ile yapılmaktadır. Güvenli panele geçmek için aşağıdaki butona tıklayın.",
+                          style: TextStyle(
+                            color: Color(0xFF627E82),
+                            fontSize: 13,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        ElevatedButton.icon(
+                          onPressed: () {
+                            showDialog(
+                              context: context,
+                              barrierDismissible: false,
+                              builder: (context) =>
+                                  const ChangePasswordDialog(),
+                            );
+                          },
+                          icon: const Icon(Icons.password),
+                          label: const Text(
+                            "ŞİFREYİ GÜNCELLE",
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF00F0FF),
+                            foregroundColor: Colors.black,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 24,
+                              vertical: 16,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -2475,58 +3066,42 @@ class _MainLayoutState extends State<MainLayout> {
               ),
             ),
             const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _logoUrlController,
-                    style: const TextStyle(color: Colors.white),
-                    decoration: const InputDecoration(
-                      labelText: 'Logo URL (Web linki yapıştırın)',
-                      labelStyle: TextStyle(color: Color(0xFF627E82)),
-                      border: OutlineInputBorder(),
-                      enabledBorder: OutlineInputBorder(
-                        borderSide: BorderSide(color: Color(0xFF00F0FF)),
-                      ),
-                    ),
-                  ),
+            TextField(
+              controller: _logoUrlController,
+              style: const TextStyle(color: Colors.white),
+              decoration: InputDecoration(
+                labelText: "Logo URL Adresi",
+                hintText: "https://siteadi.com/logo.png",
+                labelStyle: const TextStyle(color: Color(0xFF627E82)),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
                 ),
-                const SizedBox(width: 16),
-                ElevatedButton.icon(
-                  onPressed: () async {
-                    await FirebaseFirestore.instance
-                        .collection('system_settings')
-                        .doc('general')
-                        .set({
-                          'logoUrl': _logoUrlController.text.trim(),
-                        }, SetOptions(merge: true));
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text(
-                            '✅ Logo başarıyla güncellendi!',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
-                          ),
-                          backgroundColor: Color(0xFF00FF66),
-                        ),
-                      );
-                    }
-                  },
-                  icon: const Icon(Icons.save),
-                  label: const Text("KAYDET"),
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 24,
-                      vertical: 20,
-                    ),
-                    backgroundColor: const Color(0xFF00FF66),
-                    foregroundColor: Colors.black,
-                  ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(color: Color(0xFF00F0FF)),
                 ),
-              ],
+                prefixIcon: const Icon(Icons.link, color: Color(0xFF00F0FF)),
+              ),
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton.icon(
+              onPressed: _updateLogoUrl,
+              icon: const Icon(Icons.save),
+              label: const Text(
+                "URL İLE GÜNCELLE",
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 16,
+                ),
+                backgroundColor: const Color(0xFF00FF66),
+                foregroundColor: Colors.black,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
             ),
             const SizedBox(height: 24),
             Row(
@@ -2553,7 +3128,9 @@ class _MainLayoutState extends State<MainLayout> {
                         int.tryParse(_salonCapacityController.text.trim()) ??
                         50;
                     await FirebaseFirestore.instance
-                        .collection('system_settings')
+                        .collection('salonlar')
+                        .doc(salonId)
+                        .collection('sistem_ayarları')
                         .doc('general')
                         .set({
                           'salon_capacity': capacity,
@@ -2601,7 +3178,9 @@ class _MainLayoutState extends State<MainLayout> {
               value: _showInsideCard,
               onChanged: (val) async {
                 await FirebaseFirestore.instance
-                    .collection('system_settings')
+                    .collection('salonlar')
+                    .doc(salonId)
+                    .collection('sistem_ayarları')
                     .doc('general')
                     .set({'showInsideCard': val}, SetOptions(merge: true));
               },
@@ -2630,7 +3209,9 @@ class _MainLayoutState extends State<MainLayout> {
                 onChanged: (val) async {
                   if (val != null) {
                     await FirebaseFirestore.instance
-                        .collection('system_settings')
+                        .collection('salonlar')
+                        .doc(salonId)
+                        .collection('sistem_ayarları')
                         .doc('general')
                         .set({
                           'listRowCount': int.tryParse(val) ?? 25,
@@ -2775,10 +3356,21 @@ class _MainLayoutState extends State<MainLayout> {
         Expanded(
           child: StreamBuilder<QuerySnapshot>(
             stream: FirebaseFirestore.instance
+                .collection('salonlar')
+                .doc(salonId)
                 .collection('packages')
                 .orderBy('price')
                 .snapshots(),
             builder: (context, snapshot) {
+              if (snapshot.hasError) {
+                print("Kayıtlı Paketler Hatası: ${snapshot.error}");
+                return Center(
+                  child: Text(
+                    "Hata: ${snapshot.error}",
+                    style: const TextStyle(color: Colors.redAccent),
+                  ),
+                );
+              }
               if (!snapshot.hasData) {
                 return const Center(
                   child: CircularProgressIndicator(color: Color(0xFF00F0FF)),
@@ -2827,6 +3419,8 @@ class _MainLayoutState extends State<MainLayout> {
                         icon: const Icon(Icons.delete, color: Colors.redAccent),
                         onPressed: () async {
                           await FirebaseFirestore.instance
+                              .collection('salonlar')
+                              .doc(salonId)
                               .collection('packages')
                               .doc(docId)
                               .delete();
@@ -2845,12 +3439,16 @@ class _MainLayoutState extends State<MainLayout> {
 
   // Paket Ekleme Fonksiyonu
   Future<void> _addPackage(String name, double price, String iconStr) async {
-    await FirebaseFirestore.instance.collection('packages').add({
-      'name': name,
-      'price': price,
-      'icon': iconStr,
-      'timestamp': FieldValue.serverTimestamp(),
-    });
+    await FirebaseFirestore.instance
+        .collection('salonlar')
+        .doc(salonId)
+        .collection('packages')
+        .add({
+          'name': name,
+          'price': price,
+          'icon': iconStr,
+          'timestamp': FieldValue.serverTimestamp(),
+        });
   }
 }
 
@@ -2871,6 +3469,241 @@ class _ChartLegend extends StatelessWidget {
         const SizedBox(width: 8),
         Text(text, style: const TextStyle(color: Colors.white70, fontSize: 12)),
       ],
+    );
+  }
+}
+
+// ================= 🔐 ŞİFRE DEĞİŞTİRME DİYALOGU =================
+class ChangePasswordDialog extends StatefulWidget {
+  const ChangePasswordDialog({super.key});
+
+  @override
+  State<ChangePasswordDialog> createState() => _ChangePasswordDialogState();
+}
+
+class _ChangePasswordDialogState extends State<ChangePasswordDialog> {
+  final _formKey = GlobalKey<FormState>();
+  final _oldPasswordCtrl = TextEditingController();
+  final _newPasswordCtrl = TextEditingController();
+  final _confirmPasswordCtrl = TextEditingController();
+  bool _isLoading = false;
+
+  @override
+  void dispose() {
+    _oldPasswordCtrl.dispose();
+    _newPasswordCtrl.dispose();
+    _confirmPasswordCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _updatePassword() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    final user = FirebaseAuth.instance.currentUser;
+
+    if (user == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              "Oturum bilgisi bulunamadı. Lütfen tekrar giriş yapın.",
+            ),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      if (user.email != null) {
+        // 1. Mevcut şifreyi doğrula
+        AuthCredential credential = EmailAuthProvider.credential(
+          email: user.email!,
+          password: _oldPasswordCtrl.text,
+        );
+        await user.reauthenticateWithCredential(credential);
+
+        // 2. Yeni şifreyi güncelle
+        await user.updatePassword(_newPasswordCtrl.text);
+
+        // 3. Başarılı mesajı göster ve kapat
+        if (mounted) {
+          Navigator.pop(context);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                "✅ Şifreniz başarıyla güncellendi!",
+                style: TextStyle(
+                  color: Colors.black,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              backgroundColor: Color(0xFF00FF66),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      }
+    } on FirebaseAuthException catch (e) {
+      String errorMsg =
+          e.message ?? "Bir hata oluştu."; // Orijinal hatayı yakala
+      if (e.code == 'wrong-password' || e.code == 'invalid-credential') {
+        errorMsg = "Mevcut şifreniz yanlış.";
+      } else if (e.code == 'weak-password') {
+        errorMsg = "Yeni şifreniz çok zayıf (En az 6 karakter olmalı).";
+      }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              errorMsg,
+              style: const TextStyle(color: Colors.white),
+            ),
+            backgroundColor: Colors.redAccent,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Hata: ${e.toString()}"),
+            backgroundColor: Colors.redAccent,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      child: Container(
+        width: 400,
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: const Color(0xFF04171A),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: const Color(0xFF00F0FF).withOpacity(0.5)),
+        ),
+        child: Form(
+          key: _formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                "Şifre Değiştir",
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 24),
+              _buildPasswordField("Mevcut Şifre", _oldPasswordCtrl, null),
+              const SizedBox(height: 16),
+              _buildPasswordField("Yeni Şifre", _newPasswordCtrl, (val) {
+                if (val == null || val.length < 6)
+                  return "Şifre en az 6 karakter olmalı.";
+                return null;
+              }),
+              const SizedBox(height: 16),
+              _buildPasswordField("Yeni Şifre (Tekrar)", _confirmPasswordCtrl, (
+                val,
+              ) {
+                if (val != _newPasswordCtrl.text) return "Şifreler eşleşmiyor.";
+                return null;
+              }),
+              const SizedBox(height: 32),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: _isLoading ? null : () => Navigator.pop(context),
+                    child: const Text(
+                      "İptal",
+                      style: TextStyle(color: Color(0xFF627E82)),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  ElevatedButton(
+                    onPressed: _isLoading ? null : _updatePassword,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF00F0FF),
+                      foregroundColor: Colors.black,
+                    ),
+                    child: _isLoading
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(
+                              color: Colors.black,
+                              strokeWidth: 2,
+                            ),
+                          )
+                        : const Text(
+                            "GÜNCELLE",
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPasswordField(
+    String label,
+    TextEditingController ctrl,
+    String? Function(String?)? validator,
+  ) {
+    return TextFormField(
+      controller: ctrl,
+      obscureText: true,
+      style: const TextStyle(color: Colors.white, fontSize: 14),
+      validator:
+          validator ??
+          (val) => val == null || val.isEmpty ? "Bu alan zorunludur" : null,
+      decoration: InputDecoration(
+        labelText: label,
+        labelStyle: const TextStyle(color: Color(0xFF627E82), fontSize: 13),
+        prefixIcon: const Icon(
+          Icons.lock_outline,
+          color: Color(0xFF00F0FF),
+          size: 18,
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: BorderSide(
+            color: const Color(0xFF00F0FF).withOpacity(0.3),
+          ),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: const BorderSide(color: Color(0xFF00F0FF)),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: const BorderSide(color: Colors.redAccent),
+        ),
+        focusedErrorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: const BorderSide(color: Colors.redAccent),
+        ),
+        filled: true,
+        fillColor: const Color(0xFF02090B),
+      ),
     );
   }
 }
@@ -3008,6 +3841,8 @@ class _MemberFormDialogState extends State<MemberFormDialog> {
     '0 RH-',
   ];
 
+  String get salonId => FirebaseAuth.instance.currentUser!.uid;
+
   bool get isEditMode => widget.docId != null;
 
   @override
@@ -3060,13 +3895,19 @@ class _MemberFormDialogState extends State<MemberFormDialog> {
 
       if (isEditMode) {
         await FirebaseFirestore.instance
-            .collection('members')
+            .collection('salonlar')
+            .doc(salonId)
+            .collection('uyeler')
             .doc(widget.docId)
             .update(payload);
       } else {
         payload['status'] = 'Active';
         payload['timestamp'] = DateTime.now().millisecondsSinceEpoch;
-        await FirebaseFirestore.instance.collection('members').add(payload);
+        await FirebaseFirestore.instance
+            .collection('salonlar')
+            .doc(salonId)
+            .collection('uyeler')
+            .add(payload);
       }
 
       if (mounted) Navigator.pop(context);
