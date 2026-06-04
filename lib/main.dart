@@ -16,6 +16,7 @@ import 'package:provider/provider.dart';
 import 'theme_provider.dart';
 import 'app_colors.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'tablet_login_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -26,12 +27,25 @@ void main() async {
   } else {
     Firebase.app(); // Zaten başlatılmışsa olanı kullan
   }
-  runApp(
-    ChangeNotifierProvider(
-      create: (_) => ThemeProvider(),
-      child: const TurniGymApp(),
-    ),
-  );
+  runApp(const TurniGymMobile());
+}
+
+class TurniGymMobile extends StatelessWidget {
+  const TurniGymMobile({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData(
+        fontFamily: GoogleFonts.quicksand().fontFamily,
+        scaffoldBackgroundColor:
+            Colors.black, // Salon tabletleri için koyu tema
+        primaryColor: const Color(0xFFFF7F00), // Logonun turuncusu
+      ),
+      home: const TabletLoginScreen(),
+    );
+  }
 }
 
 class TurniGymApp extends StatelessWidget {
