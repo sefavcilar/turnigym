@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'scanner_page.dart';
+import 'app_colors.dart';
 
 class TabletLoginScreen extends StatefulWidget {
   const TabletLoginScreen({super.key});
@@ -69,43 +70,31 @@ class _TabletLoginScreenState extends State<TabletLoginScreen> {
             width: 450,
             padding: const EdgeInsets.all(40),
             decoration: BoxDecoration(
-              color: const Color(0xFF111111),
+              color: AppColors.white,
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                color: const Color(0xFFFF7F00).withOpacity(0.5),
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: const Color(0xFFFF7F00).withOpacity(0.1),
-                  blurRadius: 30,
-                  spreadRadius: 5,
-                ),
-              ],
+              border: Border.all(color: AppColors.borderColor),
+              boxShadow: AppColors.softShadow,
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(
-                  Icons.tablet_mac,
-                  size: 64,
-                  color: Color(0xFFFF7F00),
-                ),
+                Icon(Icons.tablet_mac, size: 64, color: AppColors.primaryColor),
                 const SizedBox(height: 24),
                 Text(
                   'SALON YÖNETİCİ GİRİŞİ',
                   style: GoogleFonts.quicksand(
-                    color: Colors.white,
+                    color: AppColors.textPrimary,
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
                     letterSpacing: 1.5,
                   ),
                 ),
                 const SizedBox(height: 12),
-                const Text(
+                Text(
                   'Salonunuzun hesabı ile giriş yaparak bu cihazı "Turnike & Kiosk" moduna sabitleyin.',
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                    color: Colors.white54,
+                    color: AppColors.textSecondary,
                     fontSize: 14,
                     height: 1.5,
                   ),
@@ -114,23 +103,21 @@ class _TabletLoginScreenState extends State<TabletLoginScreen> {
                 TextField(
                   controller: _emailController,
                   keyboardType: TextInputType.emailAddress,
-                  style: const TextStyle(color: Colors.white),
+                  style: const TextStyle(color: AppColors.textPrimary),
                   decoration: InputDecoration(
                     labelText: 'Salon E-posta',
-                    labelStyle: const TextStyle(color: Colors.white54),
-                    prefixIcon: const Icon(
+                    labelStyle: const TextStyle(color: AppColors.textSecondary),
+                    prefixIcon: Icon(
                       Icons.email_outlined,
-                      color: Color(0xFFFF7F00),
+                      color: AppColors.primaryColor,
                     ),
                     enabledBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(
-                        color: const Color(0xFFFF7F00).withOpacity(0.3),
-                      ),
+                      borderSide: BorderSide(color: AppColors.borderColor),
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Color(0xFFFF7F00)),
+                      borderSide: BorderSide(color: AppColors.primaryColor),
                     ),
                   ),
                 ),
@@ -138,23 +125,21 @@ class _TabletLoginScreenState extends State<TabletLoginScreen> {
                 TextField(
                   controller: _passwordController,
                   obscureText: true,
-                  style: const TextStyle(color: Colors.white),
+                  style: const TextStyle(color: AppColors.textPrimary),
                   decoration: InputDecoration(
                     labelText: 'Şifre',
-                    labelStyle: const TextStyle(color: Colors.white54),
-                    prefixIcon: const Icon(
+                    labelStyle: const TextStyle(color: AppColors.textSecondary),
+                    prefixIcon: Icon(
                       Icons.lock_outline,
-                      color: Color(0xFFFF7F00),
+                      color: AppColors.primaryColor,
                     ),
                     enabledBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(
-                        color: const Color(0xFFFF7F00).withOpacity(0.3),
-                      ),
+                      borderSide: BorderSide(color: AppColors.borderColor),
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Color(0xFFFF7F00)),
+                      borderSide: BorderSide(color: AppColors.primaryColor),
                     ),
                   ),
                 ),
@@ -165,8 +150,8 @@ class _TabletLoginScreenState extends State<TabletLoginScreen> {
                   child: ElevatedButton(
                     onPressed: _isLoading ? null : _loginTablet,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFFF7F00),
-                      foregroundColor: Colors.black,
+                      backgroundColor: AppColors.primaryColor,
+                      foregroundColor: AppColors.white,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),

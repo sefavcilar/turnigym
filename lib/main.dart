@@ -35,15 +35,36 @@ class TurniGymMobile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        fontFamily: GoogleFonts.quicksand().fontFamily,
-        scaffoldBackgroundColor:
-            Colors.black, // Salon tabletleri için koyu tema
-        primaryColor: const Color(0xFFFF7F00), // Logonun turuncusu
+    return ChangeNotifierProvider(
+      create: (_) => ThemeProvider(),
+      child: MaterialApp(
+        debugShowCheckedModeBanner: false,
+        theme: ThemeData(
+          brightness: Brightness.light,
+          fontFamily: GoogleFonts.quicksand().fontFamily,
+          scaffoldBackgroundColor:
+              Colors.white, // Sayfaların tamamı bembeyaz olacak
+          canvasColor: Colors.white, // Menülerin arka planı
+          colorScheme: const ColorScheme.light(
+            primary: Color(0xFF00B894), // Kurumsal yeşil
+            surface: Colors.white, // Yüzeyler beyaz
+            background: Colors.white, // Arka planlar beyaz
+          ),
+          appBarTheme: const AppBarTheme(
+            backgroundColor: Colors.white, // AppBar'lar bile beyaz
+            elevation: 0,
+            iconTheme: IconThemeData(color: Colors.black),
+          ),
+        ),
+        // Artık Firebase'in oturum durumunu dinleyerek yönlendirme yapıyoruz
+        home: StreamBuilder<User?>(
+          stream: FirebaseAuth.instance.authStateChanges(),
+          builder: (context, snapshot) {
+            if (snapshot.hasData) return const MainLayout();
+            return const LoginScreen();
+          },
+        ),
       ),
-      home: const TabletLoginScreen(),
     );
   }
 }
@@ -180,15 +201,16 @@ class _LoginViewState extends State<LoginView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF030E11),
+      backgroundColor: AppColors.scaffoldBg,
       body: Center(
         child: Container(
           width: 400,
           padding: const EdgeInsets.all(40),
           decoration: BoxDecoration(
-            color: const Color(0xFF04171A),
+            color: AppColors.white,
             borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: const Color(0xFF00F0FF).withOpacity(0.2)),
+            border: Border.all(color: AppColors.borderColor),
+            boxShadow: AppColors.softShadow,
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -197,20 +219,20 @@ class _LoginViewState extends State<LoginView> {
               const SizedBox(height: 30),
               TextField(
                 controller: _email,
-                style: const TextStyle(color: Colors.white),
+                style: const TextStyle(color: AppColors.textPrimary),
                 decoration: const InputDecoration(
                   labelText: 'E-posta',
-                  prefixIcon: Icon(Icons.email, color: Color(0xFF00F0FF)),
+                  prefixIcon: Icon(Icons.email, color: AppColors.primaryColor),
                 ),
               ),
               const SizedBox(height: 20),
               TextField(
                 controller: _pass,
                 obscureText: true,
-                style: const TextStyle(color: Colors.white),
+                style: const TextStyle(color: AppColors.textPrimary),
                 decoration: const InputDecoration(
                   labelText: 'Şifre',
-                  prefixIcon: Icon(Icons.lock, color: Color(0xFF00F0FF)),
+                  prefixIcon: Icon(Icons.lock, color: AppColors.primaryColor),
                 ),
               ),
               Row(
@@ -218,11 +240,11 @@ class _LoginViewState extends State<LoginView> {
                   Checkbox(
                     value: _rememberMe,
                     onChanged: (v) => setState(() => _rememberMe = v!),
-                    activeColor: const Color(0xFF00F0FF),
+                    activeColor: AppColors.primaryColor,
                   ),
                   const Text(
                     'Beni Hatırla',
-                    style: TextStyle(color: Colors.white70),
+                    style: TextStyle(color: AppColors.textSecondary),
                   ),
                 ],
               ),
@@ -235,7 +257,7 @@ class _LoginViewState extends State<LoginView> {
                 height: 50,
                 child: ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF00F0FF),
+                    backgroundColor: AppColors.primaryColor,
                   ),
                   onPressed: _handleAuth,
                   child: Text(
@@ -256,7 +278,7 @@ class _LoginViewState extends State<LoginView> {
                   _isLogin
                       ? 'Hesabınız yok mu? Kayıt Ol'
                       : 'Zaten hesabınız var mı? Giriş Yap',
-                  style: const TextStyle(color: Colors.white70),
+                  style: const TextStyle(color: AppColors.textSecondary),
                 ),
               ),
 
@@ -265,7 +287,7 @@ class _LoginViewState extends State<LoginView> {
                 onPressed: () {},
                 child: const Text(
                   "Şifremi Unuttum",
-                  style: TextStyle(color: Colors.grey),
+                  style: TextStyle(color: AppColors.textSecondary),
                 ),
               ),
             ],
@@ -300,14 +322,40 @@ class _MainLayoutState extends State<MainLayout> {
   final TextEditingController _logoUrlController =
       TextEditingController(); // URL tabanlı logo giriş kutusu
 
-  String get salonId => FirebaseAuth.instance.currentUser!.uid;
+  String get salonId => FirebaseAuth.instance.currentUser?.uid ?? 'demo_salon';
   // ----------------------------------
+
+  // Dinamik Tema (Renk) Yardımcıları
+  bool get _isDark => Theme.of(context).brightness == Brightness.dark;
+  Color get _bgSidebar => _isDark ? const Color(0xFF02090B) : Colors.white;
+  Color get _bgCard => _isDark ? const Color(0xFF04171A) : Colors.white;
+  Color get _bgInner => _isDark
+      ? const Color(0xFF0B2D33)
+      : AppColors.scaffoldBg; // Çok hafif gri-beyaz
+  Color get _textMain =>
+      _isDark ? Colors.white : AppColors.textPrimary; // Koyu gri yazı
+  Color get _textMuted =>
+      _isDark ? const Color(0xFF627E82) : AppColors.textSecondary;
+  Color get _borderColor => _isDark
+      ? const Color(0xFF00F0FF).withOpacity(0.2)
+      : AppColors.borderColor;
+  Color get _accentColor => _isDark
+      ? const Color(0xFF00F0FF)
+      : AppColors.primaryColor; // Enerjik Yeşil (Vurgu)
 
   @override
   void initState() {
     super.initState();
     _listenForEntries();
     _loadGeneralSettings();
+
+    // Kök dizindeki (root) üyeleri test etme kodu:
+    FirebaseFirestore.instance
+        .collection('members') // Doğru koleksiyon adı
+        .get() // Önce bir kez veri çekmeyi dene
+        .then((snapshot) {
+          print("FİREBASE'DEN GELEN ÜYE SAYISI: ${snapshot.docs.length}");
+        });
   }
 
   Future<void> _loadGeneralSettings() async {
@@ -354,7 +402,7 @@ class _MainLayoutState extends State<MainLayout> {
         content: Text(
           statusMessage, // "Sefa Avcılar giriş yaptı" veya "çıkış yaptı"
           style: const TextStyle(
-            color: Colors.white, // Yazıyı beyaz yap
+            color: Colors.black, // Yazıyı siyah yap
             fontWeight: FontWeight.bold,
           ),
         ),
@@ -374,10 +422,10 @@ class _MainLayoutState extends State<MainLayout> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF04171A),
+        backgroundColor: _bgCard,
         title: const Text(
           "Profilim",
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
         ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
@@ -393,17 +441,17 @@ class _MainLayoutState extends State<MainLayout> {
             const Text(
               "Admin: Sefa Avcılar", // İleride Firestore'dan çekilebilir
               style: TextStyle(
-                color: Colors.white,
+                color: Colors.black,
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
               ),
             ),
             const SizedBox(height: 16),
             ListTile(
-              leading: const Icon(Icons.lock, color: Colors.white),
+              leading: const Icon(Icons.lock, color: Colors.black),
               title: const Text(
                 "Şifre Değiştir",
-                style: TextStyle(color: Colors.white),
+                style: TextStyle(color: Colors.black),
               ),
               onTap: () {
                 Navigator.pop(context); // Önce profil modalını kapat
@@ -435,6 +483,7 @@ class _MainLayoutState extends State<MainLayout> {
   bool _isProcessing = false;
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = "";
+  final ScrollController _memberListScrollController = ScrollController();
   final TextEditingController _packageNameController = TextEditingController();
   final TextEditingController _packagePriceController = TextEditingController();
   final TextEditingController _packageIconController = TextEditingController();
@@ -469,6 +518,7 @@ class _MainLayoutState extends State<MainLayout> {
     _packageIconController.dispose();
     _salonCapacityController.dispose();
     _logoUrlController.dispose();
+    _memberListScrollController.dispose();
     super.dispose();
   }
 
@@ -482,7 +532,7 @@ class _MainLayoutState extends State<MainLayout> {
           // ================= SOL SIDEBAR =================
           Container(
             width: 260,
-            color: const Color(0xFF02090B),
+            color: _bgSidebar,
             padding: const EdgeInsets.symmetric(horizontal: 12),
             child: Column(
               children: [
@@ -504,15 +554,15 @@ class _MainLayoutState extends State<MainLayout> {
                         leading: Icon(
                           _menuIcons[index],
                           color: isSelected
-                              ? const Color(0xFF00FF66)
-                              : const Color(0xFF627E82),
+                              ? (_isDark
+                                    ? const Color(0xFF00FF66)
+                                    : _accentColor)
+                              : _textMuted,
                         ),
                         title: Text(
                           _menuTitles[index],
                           style: TextStyle(
-                            color: isSelected
-                                ? Colors.white
-                                : const Color(0xFF627E82),
+                            color: isSelected ? _textMain : _textMuted,
                           ),
                         ),
                         onTap: () => setState(() => _selectedIndex = index),
@@ -521,7 +571,7 @@ class _MainLayoutState extends State<MainLayout> {
                   ),
                 ),
                 // --- ÇIKIŞ BUTONU BURAYA EKLENİYOR ---
-                const Divider(color: Color(0xFF13363B)),
+                Divider(color: _borderColor),
                 ListTile(
                   leading: const Icon(
                     Icons.logout,
@@ -568,7 +618,7 @@ class _MainLayoutState extends State<MainLayout> {
                           Text(
                             _menuTitles[_selectedIndex],
                             style: TextStyle(
-                              color: AppColors.text(context),
+                              color: _textMain,
                               fontSize: 32,
                               fontWeight: FontWeight.bold,
                             ),
@@ -601,7 +651,7 @@ class _MainLayoutState extends State<MainLayout> {
                                 style: GoogleFonts.quicksand(
                                   fontSize: 36,
                                   fontWeight: FontWeight.w700,
-                                  color: AppColors.neonCyan,
+                                  color: _accentColor,
                                   letterSpacing: 1.2,
                                 ),
                               );
@@ -613,7 +663,7 @@ class _MainLayoutState extends State<MainLayout> {
                               themeProvider.themeMode == ThemeMode.dark
                                   ? Icons.wb_sunny
                                   : Icons.nightlight_round,
-                              color: AppColors.text(context),
+                              color: _textMain,
                             ),
                             onPressed: () {
                               themeProvider.toggleTheme();
@@ -621,11 +671,11 @@ class _MainLayoutState extends State<MainLayout> {
                           ),
                           const SizedBox(width: 12),
                           IconButton(
-                            icon: const Stack(
+                            icon: Stack(
                               children: [
                                 Icon(
                                   Icons.notifications_outlined,
-                                  color: Colors.white,
+                                  color: _textMain,
                                 ),
                                 Positioned(
                                   right: 0,
@@ -640,7 +690,7 @@ class _MainLayoutState extends State<MainLayout> {
                             onPressed: () {
                               showModalBottomSheet(
                                 context: context,
-                                backgroundColor: const Color(0xFF04171A),
+                                backgroundColor: _bgCard,
                                 builder: (context) =>
                                     _buildRecentNotifications(),
                               );
@@ -648,11 +698,14 @@ class _MainLayoutState extends State<MainLayout> {
                           ),
                           const SizedBox(width: 12),
                           PopupMenuButton<String>(
-                            color: const Color(0xFF0B2D33),
+                            color: _bgInner,
                             offset: const Offset(0, 50),
-                            icon: const CircleAvatar(
-                              backgroundColor: Color(0xFF00F0FF),
-                              child: Icon(Icons.person, color: Colors.black),
+                            icon: CircleAvatar(
+                              backgroundColor: _accentColor,
+                              child: const Icon(
+                                Icons.person,
+                                color: Colors.white,
+                              ),
                             ),
                             onSelected: (value) async {
                               if (value == 'logout') {
@@ -670,14 +723,14 @@ class _MainLayoutState extends State<MainLayout> {
                                 value: 'profile',
                                 child: Text(
                                   "Profilim",
-                                  style: TextStyle(color: Colors.white),
+                                  style: TextStyle(color: Colors.black),
                                 ),
                               ),
                               const PopupMenuItem(
                                 value: 'settings',
                                 child: Text(
                                   "Ayarlar",
-                                  style: TextStyle(color: Colors.white),
+                                  style: TextStyle(color: Colors.black),
                                 ),
                               ),
                               const PopupMenuItem(
@@ -734,7 +787,7 @@ class _MainLayoutState extends State<MainLayout> {
             "Kurumsal Üyelik ve İş Ortağı Yönetimi",
             style: TextStyle(
               fontSize: 26,
-              color: Colors.white,
+              color: Colors.black,
               fontWeight: FontWeight.bold,
             ),
           ),
@@ -743,8 +796,9 @@ class _MainLayoutState extends State<MainLayout> {
             width: 600, // Sayfanın ortasında şık durması için
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.05),
+              color: _bgInner,
               borderRadius: BorderRadius.circular(15),
+              border: Border.all(color: _borderColor),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -783,13 +837,13 @@ class _MainLayoutState extends State<MainLayout> {
       title: Text(
         title,
         style: const TextStyle(
-          color: Colors.white,
+          color: Colors.black,
           fontWeight: FontWeight.bold,
         ),
       ),
       subtitle: Text(
         description,
-        style: const TextStyle(color: Colors.white70),
+        style: const TextStyle(color: Colors.black87),
       ),
     );
   }
@@ -809,7 +863,7 @@ class _MainLayoutState extends State<MainLayout> {
           textAlign: TextAlign.center,
           style: TextStyle(
             fontSize: 24,
-            color: Colors.white,
+            color: Colors.black,
             fontWeight: FontWeight.bold,
           ),
         ),
@@ -837,9 +891,9 @@ class _MainLayoutState extends State<MainLayout> {
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
-        color: const Color(0xFF04171A),
+        color: _bgCard,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFF00F0FF).withOpacity(0.3)),
+        border: Border.all(color: _borderColor),
       ),
       child: ListTile(
         contentPadding: const EdgeInsets.symmetric(
@@ -857,7 +911,7 @@ class _MainLayoutState extends State<MainLayout> {
         title: Text(
           title,
           style: const TextStyle(
-            color: Colors.white,
+            color: Colors.black,
             fontWeight: FontWeight.bold,
             fontSize: 16,
           ),
@@ -889,11 +943,14 @@ class _MainLayoutState extends State<MainLayout> {
                   Expanded(
                     child: StreamBuilder<QuerySnapshot>(
                       stream: FirebaseFirestore.instance
-                          .collection('salonlar')
-                          .doc(salonId)
-                          .collection('uyeler')
+                          .collection('members')
                           .snapshots(),
                       builder: (context, snapshot) {
+                        if (snapshot.hasData) {
+                          debugPrint(
+                            "Firebase'den gelen belge sayısı: ${snapshot.data!.docs.length}",
+                          );
+                        }
                         if (snapshot.hasError) {
                           print("Toplam Üye Hatası: ${snapshot.error}");
                           return _buildStatCard(
@@ -1004,31 +1061,39 @@ class _MainLayoutState extends State<MainLayout> {
                 child: Container(
                   padding: const EdgeInsets.all(24),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF04171A),
+                    color: _bgCard,
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(
-                      color: const Color(0xFF00F0FF).withOpacity(0.15),
+                      color: _isDark
+                          ? const Color(0xFF00F0FF).withOpacity(0.15)
+                          : Colors.transparent,
                     ),
+                    boxShadow: _isDark
+                        ? []
+                        : [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.05),
+                              blurRadius: 10,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
+                      Text(
                         'HIZLI DONANIM AKSİYONLARI',
                         style: TextStyle(
-                          color: Colors.white,
+                          color: _textMain,
                           fontSize: 14,
                           fontWeight: FontWeight.bold,
                           letterSpacing: 1,
                         ),
                       ),
                       const SizedBox(height: 8),
-                      const Text(
+                      Text(
                         'Giriş turnikesini sunucu üzerinden anlık olarak manuel tetikleyebilirsiniz.',
-                        style: TextStyle(
-                          color: Color(0xFF627E82),
-                          fontSize: 12,
-                        ),
+                        style: TextStyle(color: _textMuted, fontSize: 12),
                       ),
                       const Spacer(),
 
@@ -1058,9 +1123,7 @@ class _MainLayoutState extends State<MainLayout> {
 
                                 final memberSnapshot = await FirebaseFirestore
                                     .instance
-                                    .collection('salonlar')
-                                    .doc(salonId)
-                                    .collection('uyeler')
+                                    .collection('members')
                                     .orderBy('timestamp', descending: true)
                                     .limit(1)
                                     .get();
@@ -1082,9 +1145,7 @@ class _MainLayoutState extends State<MainLayout> {
                                   if (currentCredit > 0) {
                                     // 2. Canlı trafiği güncelle (Durumu tersine çevir) ve krediyi düş
                                     await FirebaseFirestore.instance
-                                        .collection('salonlar')
-                                        .doc(salonId)
-                                        .collection('uyeler')
+                                        .collection('members')
                                         .doc(docId)
                                         .update({
                                           'credit': currentCredit - 1,
@@ -1167,14 +1228,15 @@ class _MainLayoutState extends State<MainLayout> {
                             label: const Text(
                               'UZAKTAN TURNIKEYİ AÇ',
                               style: TextStyle(
-                                color: Colors.black,
+                                color:
+                                    Colors.black, // Buton yazısı siyah yapıldı
                                 fontWeight: FontWeight.bold,
                                 fontSize: 14,
                                 letterSpacing: 0.5,
                               ),
                             ),
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF00FF66),
+                              backgroundColor: _accentColor,
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(30),
                               ),
@@ -1194,19 +1256,30 @@ class _MainLayoutState extends State<MainLayout> {
                 child: Container(
                   padding: const EdgeInsets.all(24),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF04171A),
+                    color: _bgCard,
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(
-                      color: const Color(0xFF00F0FF).withOpacity(0.15),
+                      color: _isDark
+                          ? const Color(0xFF00F0FF).withOpacity(0.15)
+                          : Colors.transparent,
                     ),
+                    boxShadow: _isDark
+                        ? []
+                        : [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.05),
+                              blurRadius: 10,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
+                      Text(
                         'KURUMSAL ÜYE DAĞILIMI',
                         style: TextStyle(
-                          color: Colors.white,
+                          color: _textMain,
                           fontSize: 14,
                           fontWeight: FontWeight.bold,
                           letterSpacing: 1,
@@ -1260,23 +1333,26 @@ class _MainLayoutState extends State<MainLayout> {
                               ),
                             ),
                             const SizedBox(width: 16),
-                            const Column(
+                            Column(
                               mainAxisAlignment: MainAxisAlignment.center,
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 _ChartLegend(
-                                  color: Color(0xFF00FF66),
+                                  color: const Color(0xFF00FF66),
                                   text: 'TurniGym VIP',
+                                  textColor: _textMuted,
                                 ),
-                                SizedBox(height: 8),
+                                const SizedBox(height: 8),
                                 _ChartLegend(
-                                  color: Color(0xFF00F0FF),
+                                  color: const Color(0xFF00F0FF),
                                   text: 'Greyder',
+                                  textColor: _textMuted,
                                 ),
-                                SizedBox(height: 8),
+                                const SizedBox(height: 8),
                                 _ChartLegend(
-                                  color: Color(0xFFFF6B00),
+                                  color: const Color(0xFFFF6B00),
                                   text: 'Mavi',
+                                  textColor: _textMuted,
                                 ),
                               ],
                             ),
@@ -1305,16 +1381,20 @@ class _MainLayoutState extends State<MainLayout> {
       margin: EdgeInsets.zero, // Margin'i sıfırla, Expanded zaten hallediyor
       padding: const EdgeInsets.all(12), // Padding'i hafif daralt
       decoration: BoxDecoration(
-        color: const Color(0xFF04171A),
+        color: _bgCard,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: neonColor.withOpacity(0.2)),
-        boxShadow: [
-          BoxShadow(
-            color: neonColor.withOpacity(0.03),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
+        border: Border.all(
+          color: _isDark ? neonColor.withOpacity(0.2) : AppColors.borderColor,
+        ),
+        boxShadow: _isDark
+            ? [
+                BoxShadow(
+                  color: neonColor.withOpacity(0.03),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ]
+            : AppColors.softShadow,
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1324,8 +1404,8 @@ class _MainLayoutState extends State<MainLayout> {
             children: [
               Text(
                 title,
-                style: const TextStyle(
-                  color: Color(0xFF627E82),
+                style: TextStyle(
+                  color: _textMuted,
                   fontSize: 10,
                   fontWeight: FontWeight.bold,
                   letterSpacing: 0.5,
@@ -1334,8 +1414,8 @@ class _MainLayoutState extends State<MainLayout> {
               const SizedBox(height: 8),
               Text(
                 value,
-                style: const TextStyle(
-                  color: Colors.white,
+                style: TextStyle(
+                  color: _textMain,
                   fontSize: 28,
                   fontWeight: FontWeight.bold,
                 ),
@@ -1359,16 +1439,19 @@ class _MainLayoutState extends State<MainLayout> {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: const Color(0xFF04171A),
+        color: _bgCard,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFF00FF66).withOpacity(0.3)),
+        border: Border.all(
+          color: _isDark
+              ? const Color(0xFF00FF66).withOpacity(0.3)
+              : AppColors.borderColor,
+        ),
+        boxShadow: _isDark ? [] : AppColors.softShadow,
       ),
       child: StreamBuilder<QuerySnapshot>(
         // 'isInside' alanı true olan üyeleri filtreliyoruz
         stream: FirebaseFirestore.instance
-            .collection('salonlar')
-            .doc(salonId)
-            .collection('uyeler')
+            .collection('members')
             .where('isInside', isEqualTo: true)
             .snapshots(),
         builder: (context, snapshot) {
@@ -1389,7 +1472,7 @@ class _MainLayoutState extends State<MainLayout> {
               const Text(
                 "ANLIK İÇERİDEKİLER",
                 style: TextStyle(
-                  color: Colors.white,
+                  color: Colors.black,
                   fontWeight: FontWeight.bold,
                   fontSize: 14,
                 ),
@@ -1406,7 +1489,7 @@ class _MainLayoutState extends State<MainLayout> {
               const SizedBox(height: 5),
               const Text(
                 "Salon trafiği aktif",
-                style: TextStyle(color: Colors.white54, fontSize: 10),
+                style: TextStyle(color: Colors.black54, fontSize: 10),
               ),
             ],
           );
@@ -1428,18 +1511,16 @@ class _MainLayoutState extends State<MainLayout> {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF04171A),
+                  color: _bgCard,
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: const Color(0xFF00F0FF).withOpacity(0.3),
-                  ),
+                  border: Border.all(color: _borderColor),
                 ),
                 child: Row(
                   children: [
-                    const Text(
+                    Text(
                       'Arama',
                       style: TextStyle(
-                        color: Colors.white,
+                        color: _textMain,
                         fontWeight: FontWeight.bold,
                         fontSize: 15,
                       ),
@@ -1449,11 +1530,9 @@ class _MainLayoutState extends State<MainLayout> {
                       child: Container(
                         height: 38,
                         decoration: BoxDecoration(
-                          color: const Color(0xFF02090B),
+                          color: _bgInner,
                           borderRadius: BorderRadius.circular(8),
-                          border: Border.all(
-                            color: const Color(0xFF00F0FF).withOpacity(0.5),
-                          ),
+                          border: Border.all(color: _borderColor),
                         ),
                         child: TextField(
                           controller: _searchController,
@@ -1462,19 +1541,19 @@ class _MainLayoutState extends State<MainLayout> {
                               _searchQuery = value.trim().toLowerCase();
                             });
                           },
-                          decoration: const InputDecoration(
-                            prefixIcon: Icon(
+                          decoration: InputDecoration(
+                            prefixIcon: const Icon(
                               Icons.search,
-                              color: Color(0xFF00F0FF),
+                              color: AppColors.primaryColor,
                               size: 16,
                             ),
                             hintText: 'Üye ismi ara...',
                             hintStyle: TextStyle(
-                              color: Color(0xFF627E82),
+                              color: _textMuted,
                               fontSize: 12,
                             ),
                             border: InputBorder.none,
-                            contentPadding: EdgeInsets.only(bottom: 10),
+                            contentPadding: const EdgeInsets.only(bottom: 10),
                           ),
                         ),
                       ),
@@ -1497,23 +1576,21 @@ class _MainLayoutState extends State<MainLayout> {
               Expanded(
                 child: Container(
                   decoration: BoxDecoration(
-                    color: const Color(0xFF04171A),
+                    color: _bgCard,
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: const Color(0xFF00F0FF).withOpacity(0.15),
-                    ),
+                    border: Border.all(color: _borderColor),
                   ),
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(12),
                     child: Column(
                       children: [
                         Container(
-                          color: const Color(0xFF02090B),
+                          color: _bgInner,
                           padding: const EdgeInsets.symmetric(
                             vertical: 12,
                             horizontal: 16,
                           ),
-                          child: const Row(
+                          child: Row(
                             children: [
                               Expanded(
                                 flex: 1,
@@ -1521,7 +1598,7 @@ class _MainLayoutState extends State<MainLayout> {
                                   'Profil',
                                   textAlign: TextAlign.center,
                                   style: TextStyle(
-                                    color: Color(0xFF627E82),
+                                    color: _textMuted,
                                     fontWeight: FontWeight.bold,
                                     fontSize: 13,
                                   ),
@@ -1532,7 +1609,7 @@ class _MainLayoutState extends State<MainLayout> {
                                 child: Text(
                                   'İsim / Telefon',
                                   style: TextStyle(
-                                    color: Color(0xFF627E82),
+                                    color: _textMuted,
                                     fontWeight: FontWeight.bold,
                                     fontSize: 13,
                                   ),
@@ -1544,7 +1621,7 @@ class _MainLayoutState extends State<MainLayout> {
                                   'Kredi',
                                   textAlign: TextAlign.center,
                                   style: TextStyle(
-                                    color: Color(0xFF627E82),
+                                    color: _textMuted,
                                     fontWeight: FontWeight.bold,
                                     fontSize: 13,
                                   ),
@@ -1556,7 +1633,7 @@ class _MainLayoutState extends State<MainLayout> {
                                   'Şirket',
                                   textAlign: TextAlign.center,
                                   style: TextStyle(
-                                    color: Color(0xFF627E82),
+                                    color: _textMuted,
                                     fontWeight: FontWeight.bold,
                                     fontSize: 13,
                                   ),
@@ -1568,7 +1645,7 @@ class _MainLayoutState extends State<MainLayout> {
                                   'İşlemler',
                                   textAlign: TextAlign.end,
                                   style: TextStyle(
-                                    color: Color(0xFF627E82),
+                                    color: _textMuted,
                                     fontWeight: FontWeight.bold,
                                     fontSize: 13,
                                   ),
@@ -1580,11 +1657,14 @@ class _MainLayoutState extends State<MainLayout> {
                         Expanded(
                           child: StreamBuilder<QuerySnapshot>(
                             stream: FirebaseFirestore.instance
-                                .collection('salonlar')
-                                .doc(salonId)
-                                .collection('uyeler')
+                                .collection('members')
                                 .snapshots(),
                             builder: (context, snapshot) {
+                              if (snapshot.hasData) {
+                                debugPrint(
+                                  "Firebase'den gelen belge sayısı: ${snapshot.data!.docs.length}",
+                                );
+                              }
                               if (snapshot.hasError) {
                                 print("Üye Listesi Hatası: ${snapshot.error}");
                                 return const Center(
@@ -1630,6 +1710,7 @@ class _MainLayoutState extends State<MainLayout> {
                               }
 
                               return ListView.builder(
+                                controller: _memberListScrollController,
                                 itemCount: filteredDocs.length,
                                 itemBuilder: (context, index) {
                                   final data =
@@ -1641,6 +1722,7 @@ class _MainLayoutState extends State<MainLayout> {
                                     context,
                                     docId,
                                     data,
+                                    index,
                                   );
                                 },
                               );
@@ -1686,22 +1768,35 @@ class _MainLayoutState extends State<MainLayout> {
                   ],
                 ),
                 child: ElevatedButton.icon(
-                  onPressed: () {
-                    showDialog(
+                  onPressed: () async {
+                    final result = await showDialog<bool>(
                       context: context,
                       barrierDismissible: false,
                       builder: (context) => const MemberFormDialog(),
                     );
+
+                    if (result == true) {
+                      // Firebase stream'inin güncellenip widget'ın render edilmesi için ufak bir bekleme
+                      Future.delayed(const Duration(milliseconds: 300), () {
+                        if (_memberListScrollController.hasClients) {
+                          _memberListScrollController.animateTo(
+                            0.0,
+                            duration: const Duration(milliseconds: 500),
+                            curve: Curves.easeOutCubic,
+                          );
+                        }
+                      });
+                    }
                   },
                   icon: const Icon(
                     Icons.person_add_alt_1,
-                    color: Colors.white,
+                    color: Colors.black,
                     size: 20,
                   ),
                   label: const Text(
                     'Yeni Üye Ekle',
                     style: TextStyle(
-                      color: Colors.white,
+                      color: Colors.black,
                       fontWeight: FontWeight.bold,
                       fontSize: 14,
                       letterSpacing: 0.5,
@@ -1710,7 +1805,7 @@ class _MainLayoutState extends State<MainLayout> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.transparent,
                     shadowColor: Colors.transparent,
-                    foregroundColor: Colors.white,
+                    foregroundColor: Colors.black,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
@@ -1722,19 +1817,17 @@ class _MainLayoutState extends State<MainLayout> {
                 child: Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF02090B),
+                    color: _bgInner,
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                      color: const Color(0xFF00F0FF).withOpacity(0.2),
-                    ),
+                    border: Border.all(color: _borderColor),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
+                      Text(
                         'Cihaz Durumu',
                         style: TextStyle(
-                          color: Colors.white,
+                          color: _textMain,
                           fontSize: 15,
                           fontWeight: FontWeight.bold,
                         ),
@@ -1840,7 +1933,7 @@ class _MainLayoutState extends State<MainLayout> {
                                             Text(
                                               name,
                                               style: const TextStyle(
-                                                color: Colors.white,
+                                                color: Colors.black,
                                                 fontSize: 12,
                                                 fontWeight: FontWeight.w600,
                                               ),
@@ -1888,6 +1981,7 @@ class _MainLayoutState extends State<MainLayout> {
     BuildContext context,
     String docId,
     Map<String, dynamic> data,
+    int index,
   ) {
     final String name = data['name'] ?? 'Bilinmeyen Üye';
     final String phone = data['phone'] ?? '-';
@@ -1896,128 +1990,139 @@ class _MainLayoutState extends State<MainLayout> {
     final String gender = data['gender'] ?? 'Erkek';
     final bool isFemale = gender == 'Kadın';
 
-    return InkWell(
-      onTap: () {
-        showDialog(
-          context: context,
-          barrierDismissible: false,
-          builder: (context) =>
-              MemberFormDialog(docId: docId, existingData: data),
-        );
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-        decoration: const BoxDecoration(
-          border: Border(bottom: BorderSide(color: Color(0xFF02171A))),
-        ),
-        child: Row(
-          children: [
-            Expanded(
-              flex: 1,
-              child: Center(
-                child: Container(
-                  width: 32,
-                  height: 32,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    image: DecorationImage(
-                      image: AssetImage(
-                        isFemale
-                            ? 'assets/images/kiz.png'
-                            : 'assets/images/erkek.png',
+    return Material(
+      color: _isDark
+          ? (index % 2 == 0
+                ? Colors.transparent
+                : Colors.white.withOpacity(0.03))
+          : (index % 2 == 0
+                ? AppColors.white
+                : const Color(0xFFF1F5F9)), // Aydınlık modda hafif gri tonlama
+      borderRadius: BorderRadius.circular(12),
+      clipBehavior:
+          Clip.antiAlias, // Tıklama animasyonunun köşelerden taşmasını engeller
+      child: InkWell(
+        onTap: () {
+          showDialog(
+            context: context,
+            barrierDismissible: false,
+            builder: (context) =>
+                MemberFormDialog(docId: docId, existingData: data),
+          );
+        },
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+          decoration: BoxDecoration(
+            border: Border(
+              bottom: BorderSide(
+                color: _isDark ? _borderColor : Colors.transparent,
+              ),
+            ),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                flex: 1,
+                child: Center(
+                  child: Container(
+                    width: 32,
+                    height: 32,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      image: DecorationImage(
+                        image: AssetImage(
+                          isFemale
+                              ? 'assets/images/kiz.png'
+                              : 'assets/images/erkek.png',
+                        ),
+                        fit: BoxFit.cover,
                       ),
-                      fit: BoxFit.cover,
                     ),
                   ),
                 ),
               ),
-            ),
-            Expanded(
-              flex: 3,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    name,
-                    style: const TextStyle(
-                      color: Color(0xFF00F0FF),
-                      fontWeight: FontWeight.w600,
+              Expanded(
+                flex: 3,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      name,
+                      style: TextStyle(
+                        color: _textMain,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
-                  ),
-                  Text(
-                    phone,
-                    style: const TextStyle(
-                      color: Color(0xFF627E82),
-                      fontSize: 11,
+                    Text(
+                      phone,
+                      style: TextStyle(color: _textMuted, fontSize: 11),
                     ),
-                  ),
-                ],
-              ),
-            ),
-            Expanded(
-              flex: 1,
-              child: Center(
-                child: Text(
-                  '$credit',
-                  style: const TextStyle(color: Colors.white),
+                  ],
                 ),
               ),
-            ),
-            Expanded(
-              flex: 2,
-              child: Center(
-                child: Text(
-                  company,
-                  style: const TextStyle(color: Color(0xFF627E82)),
+              Expanded(
+                flex: 1,
+                child: Center(
+                  child: Text(
+                    '$credit',
+                    style: const TextStyle(color: Colors.black),
+                  ),
                 ),
               ),
-            ),
-            Expanded(
-              flex: 2,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  // YENİ SATIŞ BUTONU BURAYA EKLENDİ
-                  IconButton(
-                    icon: const Icon(
-                      Icons.add_shopping_cart,
-                      color: Color(0xFF00FF66),
-                      size: 16,
-                    ),
-                    tooltip: 'Hızlı Kredi Yükle',
-                    onPressed: () => _showQuickSaleDialog(docId, name),
+              Expanded(
+                flex: 2,
+                child: Center(
+                  child: Text(
+                    company,
+                    style: const TextStyle(color: Color(0xFF627E82)),
                   ),
-                  IconButton(
-                    icon: const Icon(
-                      Icons.qr_code_2_outlined,
-                      color: Color(0xFF00F0FF),
-                      size: 16,
-                    ),
-                    tooltip: 'Karekod Oluştur',
-                    onPressed: () => showDialog(
-                      context: context,
-                      builder: (_) =>
-                          QrDisplayDialog(memberId: docId, memberName: name),
-                    ),
-                  ),
-                  const SizedBox(width: 4),
-                  IconButton(
-                    icon: const Icon(
-                      Icons.delete_outline,
-                      color: Color(0xFFFF3B30),
-                      size: 16,
-                    ),
-                    onPressed: () async => await FirebaseFirestore.instance
-                        .collection('salonlar')
-                        .doc(salonId)
-                        .collection('uyeler')
-                        .doc(docId)
-                        .delete(),
-                  ),
-                ],
+                ),
               ),
-            ),
-          ],
+              Expanded(
+                flex: 2,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    // YENİ SATIŞ BUTONU BURAYA EKLENDİ
+                    IconButton(
+                      icon: const Icon(
+                        Icons.add_shopping_cart,
+                        color: Color(0xFF00FF66),
+                        size: 16,
+                      ),
+                      tooltip: 'Hızlı Kredi Yükle',
+                      onPressed: () => _showQuickSaleDialog(docId, name),
+                    ),
+                    IconButton(
+                      icon: const Icon(
+                        Icons.qr_code_2_outlined,
+                        color: Color(0xFF00F0FF),
+                        size: 16,
+                      ),
+                      tooltip: 'Karekod Oluştur',
+                      onPressed: () => showDialog(
+                        context: context,
+                        builder: (_) =>
+                            QrDisplayDialog(memberId: docId, memberName: name),
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    IconButton(
+                      icon: const Icon(
+                        Icons.delete_outline,
+                        color: Color(0xFFFF3B30),
+                        size: 16,
+                      ),
+                      onPressed: () async => await FirebaseFirestore.instance
+                          .collection('members')
+                          .doc(docId)
+                          .delete(),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -2027,10 +2132,10 @@ class _MainLayoutState extends State<MainLayout> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF04171A),
+        backgroundColor: _bgCard,
         title: Text(
           "Kredi Yükle: $memberName",
-          style: const TextStyle(color: Colors.white),
+          style: const TextStyle(color: Colors.black),
         ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
@@ -2046,8 +2151,8 @@ class _MainLayoutState extends State<MainLayout> {
 
   Widget _packageOption(String name, int price, String memberId) {
     return ListTile(
-      tileColor: const Color(0xFF0B2D33),
-      title: Text(name, style: const TextStyle(color: Colors.white)),
+      tileColor: _bgInner,
+      title: Text(name, style: const TextStyle(color: Colors.black)),
       trailing: Text(
         "$price TL",
         style: const TextStyle(color: Colors.greenAccent),
@@ -2063,10 +2168,10 @@ class _MainLayoutState extends State<MainLayout> {
             return StatefulBuilder(
               builder: (BuildContext stateContext, StateSetter setState) {
                 return AlertDialog(
-                  backgroundColor: const Color(0xFF04171A),
+                  backgroundColor: _bgCard,
                   title: Text(
                     isLoading ? "İşlem Yapılıyor..." : "Satışı Onayla",
-                    style: const TextStyle(color: Colors.white),
+                    style: const TextStyle(color: Colors.black),
                   ),
                   content: isLoading
                       ? const Column(
@@ -2076,7 +2181,7 @@ class _MainLayoutState extends State<MainLayout> {
                             SizedBox(height: 16),
                             Text(
                               "Veritabanı güncelleniyor...",
-                              style: TextStyle(color: Colors.white70),
+                              style: TextStyle(color: Colors.black87),
                             ),
                           ],
                         )
@@ -2120,12 +2225,9 @@ class _MainLayoutState extends State<MainLayout> {
 
   Future<void> _performSale(String memberId, int price, String name) async {
     // 1. Firebase güncellemeleri
-    await FirebaseFirestore.instance
-        .collection('salonlar')
-        .doc(salonId)
-        .collection('uyeler')
-        .doc(memberId)
-        .update({'credit': FieldValue.increment(price)});
+    await FirebaseFirestore.instance.collection('members').doc(memberId).update(
+      {'credit': FieldValue.increment(price)},
+    );
 
     await FirebaseFirestore.instance
         .collection('salonlar')
@@ -2144,9 +2246,12 @@ class _MainLayoutState extends State<MainLayout> {
         SnackBar(
           content: Row(
             children: [
-              const Icon(Icons.check_circle, color: Colors.white),
+              const Icon(Icons.check_circle, color: Colors.black),
               const SizedBox(width: 10),
-              Text('Satış başarılı: $name - $price TL yüklendi!'),
+              Text(
+                'Satış başarılı: $name - $price TL yüklendi!',
+                style: const TextStyle(color: Colors.black),
+              ),
             ],
           ),
           backgroundColor: const Color(0xFF00FF66),
@@ -2162,8 +2267,8 @@ class _MainLayoutState extends State<MainLayout> {
   Widget _buildRecentNotifications() {
     return Container(
       padding: const EdgeInsets.all(24),
-      decoration: const BoxDecoration(
-        color: Color(0xFF04171A),
+      decoration: BoxDecoration(
+        color: _bgCard,
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       child: Column(
@@ -2173,7 +2278,7 @@ class _MainLayoutState extends State<MainLayout> {
           const Text(
             "Son Sistem Bildirimleri",
             style: TextStyle(
-              color: Colors.white,
+              color: Colors.black,
               fontSize: 18,
               fontWeight: FontWeight.bold,
             ),
@@ -2213,22 +2318,27 @@ class _MainLayoutState extends State<MainLayout> {
                 itemBuilder: (context, index) {
                   final data = docs[index].data() as Map<String, dynamic>;
                   final bool isSuccess = data['status'] == 'Geçiş İzni';
-                  return ListTile(
-                    leading: Icon(
-                      isSuccess
-                          ? Icons.check_circle_outline
-                          : Icons.error_outline,
-                      color: isSuccess
-                          ? const Color(0xFF00FF66)
-                          : Colors.redAccent,
-                    ),
-                    title: Text(
-                      data['memberName'] ?? 'Bilinmeyen Üye',
-                      style: const TextStyle(color: Colors.white),
-                    ),
-                    subtitle: Text(
-                      "${data['status']} - ${data['date']} ${data['time']}",
-                      style: const TextStyle(color: Colors.white54),
+                  return Container(
+                    color: index % 2 == 0
+                        ? Colors.transparent
+                        : Colors.black.withOpacity(0.03),
+                    child: ListTile(
+                      leading: Icon(
+                        isSuccess
+                            ? Icons.check_circle_outline
+                            : Icons.error_outline,
+                        color: isSuccess
+                            ? const Color(0xFF00FF66)
+                            : Colors.redAccent,
+                      ),
+                      title: Text(
+                        data['memberName'] ?? 'Bilinmeyen Üye',
+                        style: const TextStyle(color: Colors.black),
+                      ),
+                      subtitle: Text(
+                        "${data['status']} - ${data['date']} ${data['time']}",
+                        style: const TextStyle(color: Colors.black54),
+                      ),
                     ),
                   );
                 },
@@ -2316,7 +2426,7 @@ class _MainLayoutState extends State<MainLayout> {
   ) {
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFF04171A),
+        color: _bgCard,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: color.withOpacity(0.5)),
       ),
@@ -2328,7 +2438,7 @@ class _MainLayoutState extends State<MainLayout> {
           Text(
             title,
             style: const TextStyle(
-              color: Colors.white,
+              color: Colors.black,
               fontSize: 20,
               fontWeight: FontWeight.bold,
             ),
@@ -2365,7 +2475,7 @@ class _MainLayoutState extends State<MainLayout> {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: const Color(0xFF04171A),
+        color: _bgCard,
         borderRadius: BorderRadius.circular(16),
       ),
       child: Column(
@@ -2374,7 +2484,7 @@ class _MainLayoutState extends State<MainLayout> {
           const Text(
             "FİNANSAL SATIŞ RAPORLARI",
             style: TextStyle(
-              color: Colors.white,
+              color: Colors.black,
               fontSize: 18,
               fontWeight: FontWeight.bold,
             ),
@@ -2414,7 +2524,7 @@ class _MainLayoutState extends State<MainLayout> {
                   itemBuilder: (context, index) {
                     final data = docs[index].data() as Map<String, dynamic>;
                     return Card(
-                      color: const Color(0xFF0B2D33),
+                      color: index % 2 == 0 ? _bgInner : _bgCard,
                       child: ListTile(
                         leading: const Icon(
                           Icons.receipt_long,
@@ -2422,7 +2532,7 @@ class _MainLayoutState extends State<MainLayout> {
                         ),
                         title: Text(
                           data['packageName'] ?? 'Paket',
-                          style: const TextStyle(color: Colors.white),
+                          style: const TextStyle(color: Colors.black),
                         ),
                         subtitle: Text(
                           DateFormat('dd.MM.yyyy HH:mm').format(
@@ -2455,7 +2565,7 @@ class _MainLayoutState extends State<MainLayout> {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: const Color(0xFF04171A),
+        color: _bgCard,
         borderRadius: BorderRadius.circular(16),
       ),
       child: Column(
@@ -2467,17 +2577,17 @@ class _MainLayoutState extends State<MainLayout> {
               const Text(
                 "GEÇİŞ ANALİTİĞİ",
                 style: TextStyle(
-                  color: Colors.white,
+                  color: Colors.black,
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
                 ),
               ),
               SegmentedButton<String>(
                 style: SegmentedButton.styleFrom(
-                  backgroundColor: const Color(0xFF0B2D33),
-                  foregroundColor: Colors.white,
+                  backgroundColor: _bgInner,
+                  foregroundColor: Colors.black,
                   selectedForegroundColor: Colors.black,
-                  selectedBackgroundColor: const Color(0xFF00F0FF),
+                  selectedBackgroundColor: AppColors.primaryColor,
                 ),
                 segments: const [
                   ButtonSegment(value: 'GÜNLÜK', label: Text('Bugün')),
@@ -2500,7 +2610,7 @@ class _MainLayoutState extends State<MainLayout> {
                 child: _buildSummaryCard(
                   "Toplam Giriş",
                   "124",
-                  Colors.greenAccent,
+                  AppColors.primaryColor,
                 ),
               ),
               const SizedBox(width: 16),
@@ -2508,7 +2618,7 @@ class _MainLayoutState extends State<MainLayout> {
                 child: _buildSummaryCard(
                   "Ort. Salon Süresi",
                   "75 dk",
-                  Colors.cyanAccent,
+                  Colors.blue,
                 ),
               ),
               const SizedBox(width: 16),
@@ -2516,7 +2626,7 @@ class _MainLayoutState extends State<MainLayout> {
                 child: _buildSummaryCard(
                   "En Yoğun Saat",
                   "19:00",
-                  Colors.orangeAccent,
+                  AppColors.accent,
                 ),
               ),
             ],
@@ -2568,7 +2678,7 @@ class _MainLayoutState extends State<MainLayout> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFF0B2D33),
+        color: _bgInner,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: color.withOpacity(0.3)),
       ),
@@ -2577,7 +2687,7 @@ class _MainLayoutState extends State<MainLayout> {
         children: [
           Text(
             title,
-            style: const TextStyle(color: Colors.white70, fontSize: 12),
+            style: const TextStyle(color: Colors.black87, fontSize: 12),
           ),
           const SizedBox(height: 8),
           Text(
@@ -2614,9 +2724,9 @@ class _MainLayoutState extends State<MainLayout> {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: const Color(0xFF0B2D33),
+        color: _bgInner,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFF00F0FF).withOpacity(0.2)),
+        border: Border.all(color: _borderColor),
       ),
       child: BarChart(
         BarChartData(
@@ -2639,7 +2749,7 @@ class _MainLayoutState extends State<MainLayout> {
                     return Text(
                       '${value.toInt()}:00',
                       style: const TextStyle(
-                        color: Colors.white54,
+                        color: Colors.black54,
                         fontSize: 10,
                       ),
                     );
@@ -2666,7 +2776,7 @@ class _MainLayoutState extends State<MainLayout> {
               barRods: [
                 BarChartRodData(
                   toY: (hourlyData[i] ?? 0).toDouble(),
-                  color: const Color(0xFF00F0FF),
+                  color: AppColors.primaryColor,
                   width: 8,
                   borderRadius: BorderRadius.circular(2),
                 ),
@@ -2698,9 +2808,9 @@ class _MainLayoutState extends State<MainLayout> {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: const Color(0xFF0B2D33),
+        color: _bgInner,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFFF6B00).withOpacity(0.2)),
+        border: Border.all(color: _borderColor),
       ),
       child: BarChart(
         BarChartData(
@@ -2724,7 +2834,7 @@ class _MainLayoutState extends State<MainLayout> {
                     return Text(
                       '${value.toInt()}',
                       style: const TextStyle(
-                        color: Colors.white54,
+                        color: Colors.black54,
                         fontSize: 10,
                       ),
                     );
@@ -2751,7 +2861,7 @@ class _MainLayoutState extends State<MainLayout> {
               barRods: [
                 BarChartRodData(
                   toY: (dailyData[day] ?? 0).toDouble(),
-                  color: const Color(0xFFFF6B00),
+                  color: AppColors.primaryColor,
                   width: 6,
                   borderRadius: BorderRadius.circular(2),
                 ),
@@ -2785,7 +2895,9 @@ class _MainLayoutState extends State<MainLayout> {
     double occupancyRate = capacity > 0 ? (currentUsage / capacity) * 100 : 0;
     if (occupancyRate > 100) occupancyRate = 100;
 
-    Color statusColor = occupancyRate > 80 ? Colors.redAccent : Colors.cyan;
+    Color statusColor = occupancyRate > 80
+        ? Colors.redAccent
+        : AppColors.primaryColor;
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -2883,7 +2995,7 @@ class _MainLayoutState extends State<MainLayout> {
             content: Text(
               "✅ Logo URL başarıyla güncellendi!",
               style: TextStyle(
-                color: Colors.white,
+                color: Colors.black,
                 fontWeight: FontWeight.bold,
               ),
             ),
@@ -2899,7 +3011,7 @@ class _MainLayoutState extends State<MainLayout> {
             content: Text(
               "Bir hata oluştu, lütfen tekrar deneyin.",
               style: TextStyle(
-                color: Colors.white,
+                color: Colors.black,
                 fontWeight: FontWeight.bold,
               ),
             ),
@@ -2917,7 +3029,7 @@ class _MainLayoutState extends State<MainLayout> {
       child: Container(
         padding: const EdgeInsets.all(24),
         decoration: BoxDecoration(
-          color: const Color(0xFF04171A),
+          color: _bgCard,
           borderRadius: BorderRadius.circular(16),
         ),
         child: Column(
@@ -2926,7 +3038,7 @@ class _MainLayoutState extends State<MainLayout> {
             const Text(
               "SİSTEM AYARLARI",
               style: TextStyle(
-                color: Colors.white,
+                color: Colors.black,
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
               ),
@@ -2963,9 +3075,9 @@ class _MainLayoutState extends State<MainLayout> {
       child: Container(
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          color: const Color(0xFF0B2D33),
+          color: _bgInner,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: const Color(0xFF00F0FF).withOpacity(0.3)),
+          border: Border.all(color: _borderColor),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -2985,13 +3097,13 @@ class _MainLayoutState extends State<MainLayout> {
               ).copyWith(dividerColor: Colors.transparent),
               child: ExpansionTile(
                 tilePadding: EdgeInsets.zero,
-                leading: const Icon(Icons.lock_outline, color: Colors.white),
+                leading: const Icon(Icons.lock_outline, color: Colors.black),
                 iconColor: const Color(0xFF00F0FF),
                 collapsedIconColor: const Color(0xFF627E82),
                 title: const Text(
                   "Güvenlik ve Parola",
                   style: TextStyle(
-                    color: Colors.white,
+                    color: Colors.black,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -3004,11 +3116,9 @@ class _MainLayoutState extends State<MainLayout> {
                     width: double.infinity,
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF02090B),
+                      color: _bgCard,
                       borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
-                        color: const Color(0xFF00F0FF).withOpacity(0.1),
-                      ),
+                      border: Border.all(color: _borderColor),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -3064,9 +3174,9 @@ class _MainLayoutState extends State<MainLayout> {
       child: Container(
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          color: const Color(0xFF0B2D33),
+          color: _bgInner,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: const Color(0xFF00F0FF).withOpacity(0.3)),
+          border: Border.all(color: _borderColor),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -3082,7 +3192,7 @@ class _MainLayoutState extends State<MainLayout> {
             const SizedBox(height: 16),
             TextField(
               controller: _logoUrlController,
-              style: const TextStyle(color: Colors.white),
+              style: const TextStyle(color: Colors.black),
               decoration: InputDecoration(
                 labelText: "Logo URL Adresi",
                 hintText: "https://siteadi.com/logo.png",
@@ -3124,7 +3234,7 @@ class _MainLayoutState extends State<MainLayout> {
                   child: TextField(
                     controller: _salonCapacityController,
                     keyboardType: TextInputType.number,
-                    style: const TextStyle(color: Colors.white),
+                    style: const TextStyle(color: Colors.black),
                     decoration: const InputDecoration(
                       labelText: 'Salon Kapasitesi (Maksimum Kişi)',
                       labelStyle: TextStyle(color: Color(0xFF627E82)),
@@ -3156,7 +3266,7 @@ class _MainLayoutState extends State<MainLayout> {
                             '✅ Kapasite başarıyla güncellendi!',
                             style: TextStyle(
                               fontWeight: FontWeight.bold,
-                              color: Colors.white,
+                              color: Colors.black,
                             ),
                           ),
                           backgroundColor: Color(0xFF00FF66),
@@ -3182,7 +3292,7 @@ class _MainLayoutState extends State<MainLayout> {
               contentPadding: EdgeInsets.zero,
               title: const Text(
                 "Dashboard'da İçeridekiler Kartını Göster",
-                style: TextStyle(color: Colors.white),
+                style: TextStyle(color: Colors.black),
               ),
               subtitle: const Text(
                 "Ana ekranda anlık içerideki üyeleri gösteren kartı açıp kapatır.",
@@ -3204,7 +3314,7 @@ class _MainLayoutState extends State<MainLayout> {
               contentPadding: EdgeInsets.zero,
               title: const Text(
                 "Liste Satır Sayısı",
-                style: TextStyle(color: Colors.white),
+                style: TextStyle(color: Colors.black),
               ),
               subtitle: const Text(
                 "Tablolarda gösterilecek varsayılan satır sayısı.",
@@ -3212,8 +3322,8 @@ class _MainLayoutState extends State<MainLayout> {
               ),
               trailing: DropdownButton<String>(
                 value: _listRowCount,
-                dropdownColor: const Color(0xFF0B2D33),
-                style: const TextStyle(color: Colors.white),
+                dropdownColor: _bgInner,
+                style: const TextStyle(color: Colors.black),
                 items: ['10', '25', '50'].map((String value) {
                   return DropdownMenuItem<String>(
                     value: value,
@@ -3247,9 +3357,9 @@ class _MainLayoutState extends State<MainLayout> {
         Container(
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
-            color: const Color(0xFF0B2D33),
+            color: _bgInner,
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: const Color(0xFF00F0FF).withOpacity(0.3)),
+            border: Border.all(color: _borderColor),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -3268,7 +3378,7 @@ class _MainLayoutState extends State<MainLayout> {
                   Expanded(
                     child: TextField(
                       controller: _packageNameController,
-                      style: const TextStyle(color: Colors.white),
+                      style: const TextStyle(color: Colors.black),
                       decoration: const InputDecoration(
                         labelText: 'Paket Adı',
                         labelStyle: TextStyle(color: Color(0xFF627E82)),
@@ -3283,7 +3393,7 @@ class _MainLayoutState extends State<MainLayout> {
                   Expanded(
                     child: TextField(
                       controller: _packagePriceController,
-                      style: const TextStyle(color: Colors.white),
+                      style: const TextStyle(color: Colors.black),
                       keyboardType: TextInputType.number,
                       decoration: const InputDecoration(
                         labelText: 'Fiyat (TL)',
@@ -3299,7 +3409,7 @@ class _MainLayoutState extends State<MainLayout> {
                   Expanded(
                     child: TextField(
                       controller: _packageIconController,
-                      style: const TextStyle(color: Colors.white),
+                      style: const TextStyle(color: Colors.black),
                       decoration: const InputDecoration(
                         labelText: 'İkon (örn: fitness_center)',
                         labelStyle: TextStyle(color: Color(0xFF627E82)),
@@ -3332,7 +3442,7 @@ class _MainLayoutState extends State<MainLayout> {
                                 '✅ Paket başarıyla kaydedildi!',
                                 style: TextStyle(
                                   fontWeight: FontWeight.bold,
-                                  color: Colors.white,
+                                  color: Colors.black,
                                 ),
                               ),
                               backgroundColor: Color(0xFF00FF66),
@@ -3361,7 +3471,7 @@ class _MainLayoutState extends State<MainLayout> {
         const Text(
           "Kayıtlı Paketler",
           style: TextStyle(
-            color: Colors.white,
+            color: Colors.black,
             fontSize: 16,
             fontWeight: FontWeight.bold,
           ),
@@ -3405,7 +3515,7 @@ class _MainLayoutState extends State<MainLayout> {
                   final docId = docs[index].id;
 
                   return Card(
-                    color: const Color(0xFF02090B),
+                    color: index % 2 == 0 ? _bgCard : _bgInner,
                     shape: RoundedRectangleBorder(
                       side: BorderSide(
                         color: const Color(0xFF00F0FF).withOpacity(0.2),
@@ -3421,7 +3531,7 @@ class _MainLayoutState extends State<MainLayout> {
                       title: Text(
                         data['name'] ?? 'Paket',
                         style: const TextStyle(
-                          color: Colors.white,
+                          color: Colors.black,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -3469,7 +3579,12 @@ class _MainLayoutState extends State<MainLayout> {
 class _ChartLegend extends StatelessWidget {
   final Color color;
   final String text;
-  const _ChartLegend({required this.color, required this.text});
+  final Color textColor;
+  const _ChartLegend({
+    required this.color,
+    required this.text,
+    required this.textColor,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -3481,7 +3596,7 @@ class _ChartLegend extends StatelessWidget {
           decoration: BoxDecoration(color: color, shape: BoxShape.circle),
         ),
         const SizedBox(width: 8),
-        Text(text, style: const TextStyle(color: Colors.white70, fontSize: 12)),
+        Text(text, style: TextStyle(color: textColor, fontSize: 12)),
       ],
     );
   }
@@ -3574,7 +3689,7 @@ class _ChangePasswordDialogState extends State<ChangePasswordDialog> {
           SnackBar(
             content: Text(
               errorMsg,
-              style: const TextStyle(color: Colors.white),
+              style: const TextStyle(color: Colors.black),
             ),
             backgroundColor: Colors.redAccent,
             behavior: SnackBarBehavior.floating,
@@ -3604,9 +3719,10 @@ class _ChangePasswordDialogState extends State<ChangePasswordDialog> {
         width: 400,
         padding: const EdgeInsets.all(24),
         decoration: BoxDecoration(
-          color: const Color(0xFF04171A),
+          color: AppColors.white,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0xFF00F0FF).withOpacity(0.5)),
+          border: Border.all(color: AppColors.borderColor),
+          boxShadow: AppColors.softShadow,
         ),
         child: Form(
           key: _formKey,
@@ -3616,7 +3732,7 @@ class _ChangePasswordDialogState extends State<ChangePasswordDialog> {
               const Text(
                 "Şifre Değiştir",
                 style: TextStyle(
-                  color: Colors.white,
+                  color: AppColors.textPrimary,
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
                 ),
@@ -3685,27 +3801,28 @@ class _ChangePasswordDialogState extends State<ChangePasswordDialog> {
     return TextFormField(
       controller: ctrl,
       obscureText: true,
-      style: const TextStyle(color: Colors.white, fontSize: 14),
+      style: const TextStyle(color: AppColors.textPrimary, fontSize: 14),
       validator:
           validator ??
           (val) => val == null || val.isEmpty ? "Bu alan zorunludur" : null,
       decoration: InputDecoration(
         labelText: label,
-        labelStyle: const TextStyle(color: Color(0xFF627E82), fontSize: 13),
+        labelStyle: const TextStyle(
+          color: AppColors.textSecondary,
+          fontSize: 13,
+        ),
         prefixIcon: const Icon(
           Icons.lock_outline,
-          color: Color(0xFF00F0FF),
+          color: AppColors.primaryColor,
           size: 18,
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(
-            color: const Color(0xFF00F0FF).withOpacity(0.3),
-          ),
+          borderSide: BorderSide(color: AppColors.borderColor),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          borderSide: const BorderSide(color: Color(0xFF00F0FF)),
+          borderSide: const BorderSide(color: AppColors.primaryColor),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
@@ -3716,7 +3833,7 @@ class _ChangePasswordDialogState extends State<ChangePasswordDialog> {
           borderSide: const BorderSide(color: Colors.redAccent),
         ),
         filled: true,
-        fillColor: const Color(0xFF02090B),
+        fillColor: AppColors.scaffoldBg,
       ),
     );
   }
@@ -3777,9 +3894,10 @@ class _QrDisplayDialogState extends State<QrDisplayDialog> {
         width: 320,
         padding: const EdgeInsets.all(24),
         decoration: BoxDecoration(
-          color: const Color(0xFF04171A),
+          color: AppColors.white,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0xFF00F0FF).withOpacity(0.5)),
+          border: Border.all(color: AppColors.borderColor),
+          boxShadow: AppColors.softShadow,
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -3787,7 +3905,7 @@ class _QrDisplayDialogState extends State<QrDisplayDialog> {
             const Text(
               'GÜVENLİ GİRİŞ KODU',
               style: TextStyle(
-                color: Colors.white,
+                color: AppColors.textPrimary,
                 fontWeight: FontWeight.bold,
               ),
             ),
@@ -3855,7 +3973,7 @@ class _MemberFormDialogState extends State<MemberFormDialog> {
     '0 RH-',
   ];
 
-  String get salonId => FirebaseAuth.instance.currentUser!.uid;
+  String get salonId => FirebaseAuth.instance.currentUser?.uid ?? 'demo_salon';
 
   bool get isEditMode => widget.docId != null;
 
@@ -3909,22 +4027,20 @@ class _MemberFormDialogState extends State<MemberFormDialog> {
 
       if (isEditMode) {
         await FirebaseFirestore.instance
-            .collection('salonlar')
-            .doc(salonId)
-            .collection('uyeler')
+            .collection('members')
             .doc(widget.docId)
             .update(payload);
       } else {
         payload['status'] = 'Active';
         payload['timestamp'] = DateTime.now().millisecondsSinceEpoch;
-        await FirebaseFirestore.instance
-            .collection('salonlar')
-            .doc(salonId)
-            .collection('uyeler')
-            .add(payload);
+        payload['isInside'] =
+            false; // Yeni üyeler kapıdan girmeden içeride olamaz
+        payload['tenantId'] =
+            salonId; // 🌟 YENİ: Sisteme yeni eklenen üyelere salon kimliğini ekle!
+        await FirebaseFirestore.instance.collection('members').add(payload);
       }
 
-      if (mounted) Navigator.pop(context);
+      if (mounted) Navigator.pop(context, !isEditMode);
     } catch (e) {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -3940,22 +4056,13 @@ class _MemberFormDialogState extends State<MemberFormDialog> {
         width: 460,
         padding: const EdgeInsets.all(24),
         decoration: BoxDecoration(
-          color: const Color(0xFF04171A),
+          color: AppColors.white,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: isEditMode
-                ? const Color(0xFFFF6B00)
-                : const Color(0xFF00F0FF),
+            color: isEditMode ? AppColors.accent : AppColors.primaryColor,
             width: 2,
           ),
-          boxShadow: [
-            BoxShadow(
-              color: isEditMode
-                  ? const Color(0xFFFF6B00).withOpacity(0.1)
-                  : const Color(0xFF00F0FF).withOpacity(0.1),
-              blurRadius: 15,
-            ),
-          ],
+          boxShadow: AppColors.softShadow,
         ),
         child: Form(
           key: _formKey,
@@ -3968,7 +4075,7 @@ class _MemberFormDialogState extends State<MemberFormDialog> {
                   children: [
                     CircleAvatar(
                       radius: 32,
-                      backgroundColor: const Color(0xFF02090B),
+                      backgroundColor: AppColors.scaffoldBg,
                       backgroundImage: AssetImage(
                         isFemale
                             ? 'assets/images/kiz.png'
@@ -3983,7 +4090,7 @@ class _MemberFormDialogState extends State<MemberFormDialog> {
                           const Text(
                             'ÜYE PROFİLİ',
                             style: TextStyle(
-                              color: Colors.white,
+                              color: AppColors.textPrimary,
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
                               letterSpacing: 0.5,
@@ -4103,32 +4210,35 @@ class _MemberFormDialogState extends State<MemberFormDialog> {
                 TextFormField(
                   controller: _notesCtrl,
                   maxLines: 3,
-                  style: const TextStyle(color: Colors.white, fontSize: 13),
+                  style: const TextStyle(
+                    color: AppColors.textPrimary,
+                    fontSize: 13,
+                  ),
                   decoration: InputDecoration(
                     labelText:
                         'Sağlık ve Özel Notlar (Astım, Sakatlık, Önemli Notlar...)',
                     labelStyle: const TextStyle(
-                      color: Color(0xFF627E82),
+                      color: AppColors.textSecondary,
                       fontSize: 12,
                     ),
                     prefixIcon: const Icon(
                       Icons.assignment_outlined,
-                      color: Color(0xFF00F0FF),
+                      color: AppColors.primaryColor,
                       size: 18,
                     ),
                     enabledBorder: const OutlineInputBorder(
                       borderRadius: BorderRadius.all(Radius.circular(8)),
                       borderSide: BorderSide(
-                        color: Color(0xFF00F0FF),
+                        color: AppColors.primaryColor,
                         width: 0.3,
                       ),
                     ),
                     focusedBorder: const OutlineInputBorder(
                       borderRadius: BorderRadius.all(Radius.circular(8)),
-                      borderSide: BorderSide(color: Color(0xFF00F0FF)),
+                      borderSide: BorderSide(color: AppColors.primaryColor),
                     ),
                     filled: true,
-                    fillColor: const Color(0xFF02090B),
+                    fillColor: AppColors.scaffoldBg,
                   ),
                 ),
 
@@ -4190,7 +4300,7 @@ class _MemberFormDialogState extends State<MemberFormDialog> {
       keyboardType: (isNum || isPhoneFormat)
           ? TextInputType.number
           : TextInputType.text,
-      style: const TextStyle(color: Colors.white, fontSize: 14),
+      style: const TextStyle(color: AppColors.textPrimary, fontSize: 14),
       validator: (value) {
         if (isRequired && (value == null || value.trim().isEmpty)) {
           return 'Bu alan mecburi bırakılamaz!';
@@ -4207,15 +4317,18 @@ class _MemberFormDialogState extends State<MemberFormDialog> {
       },
       decoration: InputDecoration(
         labelText: label,
-        labelStyle: const TextStyle(color: Color(0xFF627E82), fontSize: 13),
-        prefixIcon: Icon(icon, color: const Color(0xFF00F0FF), size: 18),
+        labelStyle: const TextStyle(
+          color: AppColors.textSecondary,
+          fontSize: 13,
+        ),
+        prefixIcon: Icon(icon, color: AppColors.primaryColor, size: 18),
         enabledBorder: const OutlineInputBorder(
           borderRadius: BorderRadius.all(Radius.circular(8)),
-          borderSide: BorderSide(color: Color(0xFF00F0FF), width: 0.3),
+          borderSide: BorderSide(color: AppColors.primaryColor, width: 0.3),
         ),
         focusedBorder: const OutlineInputBorder(
           borderRadius: BorderRadius.all(Radius.circular(8)),
-          borderSide: BorderSide(color: Color(0xFF00F0FF)),
+          borderSide: BorderSide(color: AppColors.primaryColor),
         ),
         errorBorder: const OutlineInputBorder(
           borderRadius: BorderRadius.all(Radius.circular(8)),
@@ -4226,7 +4339,7 @@ class _MemberFormDialogState extends State<MemberFormDialog> {
           borderSide: BorderSide(color: Colors.red, width: 2),
         ),
         filled: true,
-        fillColor: const Color(0xFF02090B),
+        fillColor: AppColors.scaffoldBg,
         contentPadding: const EdgeInsets.symmetric(vertical: 10),
       ),
     );
@@ -4250,22 +4363,25 @@ class _MemberFormDialogState extends State<MemberFormDialog> {
           )
           .toList(),
       onChanged: onChanged,
-      dropdownColor: const Color(0xFF04171A),
-      style: const TextStyle(color: Colors.white),
+      dropdownColor: AppColors.white,
+      style: const TextStyle(color: AppColors.textPrimary),
       decoration: InputDecoration(
         labelText: label,
-        labelStyle: const TextStyle(color: Color(0xFF627E82), fontSize: 13),
-        prefixIcon: Icon(icon, color: const Color(0xFF00F0FF), size: 18),
+        labelStyle: const TextStyle(
+          color: AppColors.textSecondary,
+          fontSize: 13,
+        ),
+        prefixIcon: Icon(icon, color: AppColors.primaryColor, size: 18),
         enabledBorder: const OutlineInputBorder(
           borderRadius: BorderRadius.all(Radius.circular(8)),
-          borderSide: BorderSide(color: Color(0xFF00F0FF), width: 0.3),
+          borderSide: BorderSide(color: AppColors.primaryColor, width: 0.3),
         ),
         focusedBorder: const OutlineInputBorder(
           borderRadius: BorderRadius.all(Radius.circular(8)),
-          borderSide: BorderSide(color: Color(0xFF00F0FF)),
+          borderSide: BorderSide(color: AppColors.primaryColor),
         ),
         filled: true,
-        fillColor: const Color(0xFF02090B),
+        fillColor: AppColors.scaffoldBg,
         contentPadding: const EdgeInsets.symmetric(
           vertical: 10,
           horizontal: 10,

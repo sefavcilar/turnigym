@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 
 class ThemeProvider with ChangeNotifier {
-  ThemeMode _themeMode = ThemeMode.dark; // Başlangıçta Dark Mode açılsın
+  ThemeMode _themeMode =
+      ThemeMode.light; // Artık standart olarak Açık Renk açılsın
 
   ThemeMode get themeMode => _themeMode;
 

@@ -27,9 +27,7 @@ class ScannerPage extends StatelessWidget {
   Future<void> _processEntry(BuildContext context, String memberUid) async {
     final salonId = FirebaseAuth.instance.currentUser!.uid;
     final memberRef = FirebaseFirestore.instance
-        .collection('salonlar')
-        .doc(salonId)
-        .collection('uyeler')
+        .collection('members')
         .doc(memberUid);
 
     final snapshot = await memberRef.get();
