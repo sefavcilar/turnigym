@@ -53,3 +53,4 @@ assets/service-account.json
 # Çevre Değişkenleri (Environment Variables)
 .env
 .env.*
+lib/firebase_options.dart
