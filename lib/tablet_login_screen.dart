@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'scanner_page.dart';
+import 'kiosk_screen.dart';
 import 'app_colors.dart';
 
 class TabletLoginScreen extends StatefulWidget {
@@ -33,7 +33,7 @@ class _TabletLoginScreenState extends State<TabletLoginScreen> {
         if (!mounted) return;
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (context) => const ScannerPage()),
+          MaterialPageRoute(builder: (context) => const KioskTerminalScreen()),
         );
       }
     } catch (e) {
